@@ -1,0 +1,494 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/white"
+    tools:context=".HomePage">
+
+    <RelativeLayout
+        android:id="@+id/CommunityText"
+        android:layout_marginRight="10dp"
+        android:layout_marginLeft="10dp"
+        android:layout_marginTop="10dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <TextView
+            android:id="@+id/MyCommunityText"
+            android:text="My Community"
+            android:textStyle="bold"
+            android:textSize="24sp"
+            android:textColor="#303032"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+
+        <TextView
+            android:layout_below="@id/MyCommunityText"
+            android:id="@+id/WelcomeText"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="#303032"
+            android:text="A place for all your questions"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+
+        <Button
+            android:id="@+id/DM"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:layout_alignParentEnd="true"
+            android:background="@drawable/dmlogo"
+            android:layout_marginStart="16dp"
+            android:layout_marginTop="3dp"/>
+
+        <HorizontalScrollView
+            android:id="@+id/StoryRow"
+            android:layout_marginTop="10dp"
+            android:layout_below="@id/MyCommunityText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:orientation="horizontal"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content">
+
+                <RelativeLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content">
+
+                    <ImageButton
+                        android:src="@drawable/profilepicture"
+                        android:id="@+id/NewStory"
+                        android:background="@null"
+                        android:scaleType="fitCenter"
+                        android:layout_marginTop="2dp"
+                        android:layout_marginRight="5dp"
+                        android:layout_width="75dp"
+                        android:layout_height="110dp"/>
+
+                    <ImageButton
+                        android:src="@drawable/plus_sign"
+                        android:id="@+id/StoryMore"
+                        android:background="@drawable/green_circle"
+                        android:scaleType="fitCenter"
+                        android:padding="3dp"
+                        android:layout_width="25dp"
+                        android:layout_height="25dp"
+                        android:layout_alignBottom="@id/NewStory"
+                        android:layout_alignEnd="@id/NewStory"
+                        android:layout_marginBottom="18dp"/>
+
+                </RelativeLayout>
+
+                <ImageButton
+                    android:src="@drawable/profilepicture_1"
+                    android:background="@drawable/story_circle"
+                    android:scaleType="fitCenter"
+                    android:layout_marginRight="5dp"
+                    android:layout_marginTop="20dp"
+                    android:padding="4dp"
+                    android:layout_width="75dp"
+                    android:layout_height="75dp"/>
+
+                <ImageButton
+                    android:src="@drawable/profilepicture_2"
+                    android:background="@drawable/story_circle"
+                    android:scaleType="fitCenter"
+                    android:layout_marginRight="5dp"
+                    android:layout_marginTop="20dp"
+                    android:padding="4dp"
+                    android:layout_width="75dp"
+                    android:layout_height="75dp"/>
+
+                <ImageButton
+                    android:src="@drawable/profilepicture_3"
+                    android:background="@drawable/story_circle"
+                    android:scaleType="fitCenter"
+                    android:layout_marginRight="5dp"
+                    android:layout_marginTop="20dp"
+                    android:padding="4dp"
+                    android:layout_width="75dp"
+                    android:layout_height="75dp"/>
+
+                <ImageButton
+                    android:src="@drawable/profilepicture_3"
+                    android:background="@drawable/story_circle"
+                    android:scaleType="fitCenter"
+                    android:layout_marginRight="5dp"
+                    android:layout_marginTop="20dp"
+                    android:padding="4dp"
+                    android:layout_width="75dp"
+                    android:layout_height="75dp"/>
+            </LinearLayout>
+
+        </HorizontalScrollView>
+
+    </RelativeLayout>
+
+    <View
+        android:id="@+id/Divider_1"
+        android:layout_width="match_parent"
+        android:layout_height="3dp"
+        android:layout_below="@id/CommunityText"
+        android:layout_marginTop="-10dp"
+        android:background="#D8D8D8"/>
+
+    <ScrollView
+        android:id="@+id/PostScroll"
+        android:layout_below="@+id/Divider_1"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginBottom="70dp"
+        android:fillViewport="true">
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <RelativeLayout
+                android:id="@+id/Post"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <RelativeLayout
+                    android:id="@+id/PostHeader"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <ImageView
+                        android:id="@+id/PostProfilePicture"
+                        android:src="@drawable/profilepicture_4"
+                        android:background="@drawable/post_circle"
+                        android:scaleType="fitCenter"
+                        android:padding="2dp"
+                        android:layout_marginTop="10dp"
+                        android:layout_marginLeft="15dp"
+                        android:layout_marginBottom="10dp"
+                        android:layout_width="40dp"
+                        android:layout_height="35dp"/>
+
+                    <TextView
+                        android:id="@+id/PostUsername"
+                        android:layout_toRightOf="@id/PostProfilePicture"
+                        android:text="Emily James"
+                        android:textStyle="bold"
+                        android:layout_centerVertical="true"
+                        android:layout_marginLeft="15dp"
+                        android:textSize="14sp"
+                        android:textColor="#303032"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"/>
+
+                    <ImageView
+                        android:layout_marginRight="15dp"
+                        android:layout_centerVertical="true"
+                        android:layout_alignParentRight="true"
+                        android:src="@drawable/outline_spoke_24"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"/>
+
+                </RelativeLayout>
+
+                <ImageView
+                    android:layout_marginTop="-35dp"
+                    android:id="@+id/PostImage"
+                    android:layout_below="@id/PostHeader"
+                    android:src="@drawable/postpicture"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"/>
+
+                <RelativeLayout
+                    android:id="@+id/PostFooter"
+                    android:layout_marginTop="-35dp"
+                    android:layout_below="@+id/PostImage"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <ImageView
+                        android:id="@+id/LikeButton"
+                        android:layout_marginTop="-2dp"
+                        android:layout_marginLeft="4dp"
+                        android:src="@drawable/heartsymbol"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"/>
+
+                    <ImageView
+                        android:id="@+id/CommentButton"
+                        android:layout_marginTop="-2dp"
+                        android:layout_marginLeft="-6dp"
+                        android:layout_toRightOf="@id/LikeButton"
+                        android:src="@drawable/commentlogo"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"/>
+
+                    <ImageView
+                        android:id="@+id/ShareButton"
+                        android:layout_marginTop="-2dp"
+                        android:layout_marginLeft="-6dp"
+                        android:layout_toRightOf="@id/CommentButton"
+                        android:src="@drawable/dmlogo"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"/>
+
+                    <ImageView
+                        android:id="@+id/SaveButton"
+                        android:layout_marginTop="-2dp"
+                        android:layout_marginRight="2dp"
+                        android:layout_alignParentRight="true"
+                        android:src="@drawable/savelogo"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"/>
+
+                </RelativeLayout>
+
+                <View
+                    android:id="@+id/Divider_2"
+                    android:layout_width="match_parent"
+                    android:layout_height="3dp"
+                    android:layout_below="@id/PostFooter"
+                    android:background="#D8D8D8"/>
+
+                <RelativeLayout
+                    android:id="@+id/Caption"
+                    android:layout_marginLeft="15dp"
+                    android:layout_marginRight="15dp"
+                    android:layout_below="@id/Divider_2"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <TextView
+                        android:id="@+id/CaptionText"
+                        android:layout_marginTop="5dp"
+                        android:text="@string/Caption"
+                        android:textSize="14sp"
+                        android:textColor="#303032"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"/>
+
+                    <ImageView
+                        android:src="@drawable/captionimage"
+                        android:layout_marginTop="22dp"
+                        android:layout_marginLeft="40dp"
+                        android:layout_width="100dp"
+                        android:layout_height="20dp"/>
+
+                </RelativeLayout>
+
+                <View
+                    android:id="@+id/Divider_3"
+                    android:layout_width="match_parent"
+                    android:layout_height="3dp"
+                    android:layout_below="@id/Caption"
+                    android:layout_marginTop="5dp"
+                    android:background="#D8D8D8"/>
+
+            </RelativeLayout>
+
+            <RelativeLayout
+                android:id="@+id/Post1"
+                android:layout_below="@+id/Post"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <RelativeLayout
+                    android:id="@+id/PostHeader1"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <ImageView
+                        android:id="@+id/PostProfilePicture1"
+                        android:src="@drawable/profilepicture5"
+                        android:background="@drawable/post_circle"
+                        android:scaleType="fitCenter"
+                        android:padding="2dp"
+                        android:layout_marginTop="10dp"
+                        android:layout_marginLeft="15dp"
+                        android:layout_marginBottom="10dp"
+                        android:layout_width="40dp"
+                        android:layout_height="35dp"/>
+
+                    <TextView
+                        android:id="@+id/PostUsername1"
+                        android:layout_toRightOf="@id/PostProfilePicture1"
+                        android:text="Kadin Bergson"
+                        android:textStyle="bold"
+                        android:layout_centerVertical="true"
+                        android:layout_marginLeft="15dp"
+                        android:textSize="14sp"
+                        android:textColor="#303032"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"/>
+
+                    <ImageView
+                        android:layout_marginRight="15dp"
+                        android:layout_centerVertical="true"
+                        android:layout_alignParentRight="true"
+                        android:src="@drawable/outline_spoke_24"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"/>
+
+                </RelativeLayout>
+
+                <ImageView
+                    android:layout_marginTop="-35dp"
+                    android:id="@+id/PostImage1"
+                    android:layout_below="@id/PostHeader1"
+                    android:src="@drawable/postpicture"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"/>
+
+                <RelativeLayout
+                    android:id="@+id/PostFooter1"
+                    android:layout_marginTop="-35dp"
+                    android:layout_below="@+id/PostImage1"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <ImageView
+                        android:id="@+id/LikeButton1"
+                        android:layout_marginTop="-2dp"
+                        android:layout_marginLeft="4dp"
+                        android:src="@drawable/heartsymbol"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"/>
+
+                    <ImageView
+                        android:id="@+id/CommentButton1"
+                        android:layout_marginTop="-2dp"
+                        android:layout_marginLeft="-6dp"
+                        android:layout_toRightOf="@id/LikeButton1"
+                        android:src="@drawable/commentlogo"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"/>
+
+                    <ImageView
+                        android:id="@+id/ShareButton1"
+                        android:layout_marginTop="-2dp"
+                        android:layout_marginLeft="-6dp"
+                        android:layout_toRightOf="@id/CommentButton1"
+                        android:src="@drawable/dmlogo"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"/>
+
+                    <ImageView
+                        android:id="@+id/SaveButton1"
+                        android:layout_marginTop="-2dp"
+                        android:layout_marginRight="2dp"
+                        android:layout_alignParentRight="true"
+                        android:src="@drawable/savelogo"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"/>
+
+                </RelativeLayout>
+
+                <View
+                    android:id="@+id/Divider_21"
+                    android:layout_width="match_parent"
+                    android:layout_height="3dp"
+                    android:layout_below="@id/PostFooter1"
+                    android:background="#D8D8D8"/>
+
+                <RelativeLayout
+                    android:id="@+id/Caption1"
+                    android:layout_marginLeft="15dp"
+                    android:layout_marginRight="15dp"
+                    android:layout_below="@id/Divider_21"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <TextView
+                        android:id="@+id/CaptionText1"
+                        android:layout_marginTop="5dp"
+                        android:text="@string/Caption2"
+                        android:textSize="14sp"
+                        android:textColor="#303032"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"/>
+
+                    <ImageView
+                        android:src="@drawable/captionimage"
+                        android:layout_marginTop="22dp"
+                        android:layout_marginLeft="40dp"
+                        android:layout_width="100dp"
+                        android:layout_height="20dp"/>
+
+                </RelativeLayout>
+
+                <View
+                    android:id="@+id/Divider_31"
+                    android:layout_width="match_parent"
+                    android:layout_height="3dp"
+                    android:layout_below="@id/Caption1"
+                    android:layout_marginTop="5dp"
+                    android:background="#D8D8D8"/>
+
+            </RelativeLayout>
+
+        </RelativeLayout>
+
+    </ScrollView>
+
+    <RelativeLayout
+        android:layout_alignParentBottom="true"
+        android:layout_width="wrap_content"
+        android:layout_height="70dp">
+
+        <Button
+            android:id="@+id/myBtn"
+            android:background="@drawable/housesymbolgreen"
+            android:layout_centerVertical="true"
+            android:layout_width="25dp"
+            android:layout_height="35dp"
+            android:layout_marginLeft="30dp"
+            android:layout_marginRight="20dp"/>
+
+        <Button
+            android:id="@+id/Search"
+            android:background="@drawable/searchsymbolgrey"
+            android:layout_centerVertical="true"
+            android:layout_width="25dp"
+            android:layout_height="35dp"
+            android:layout_toRightOf="@id/myBtn"
+            android:layout_marginLeft="20dp"
+            android:layout_marginRight="20dp"/>
+
+        <ImageButton
+            android:id="@+id/NewPost"
+            android:src="@drawable/plus_sign"
+            android:background="@drawable/green_circle"
+            android:layout_width="45dp"
+            android:layout_height="45dp"
+            android:layout_centerVertical="true"
+            android:layout_toRightOf="@id/Search"
+            android:layout_marginLeft="15dp"
+            android:layout_marginRight="15dp"/>
+
+        <Button
+            android:id="@+id/Profile"
+            android:background="@drawable/profilelogogrey"
+            android:layout_width="25dp"
+            android:layout_height="35dp"
+            android:layout_centerVertical="true"
+            android:layout_toRightOf="@id/NewPost"
+            android:layout_marginLeft="20dp"
+            android:layout_marginRight="20dp"/>
+
+        <Button
+            android:id="@+id/Contact"
+            android:background="@drawable/contactslogogrey"
+            android:layout_width="30dp"
+            android:layout_height="35dp"
+            android:layout_centerVertical="true"
+            android:layout_toRightOf="@id/Profile"
+            android:layout_marginLeft="20dp"
+            android:layout_marginRight="20dp"/>
+
+    </RelativeLayout>
+
+</RelativeLayout>

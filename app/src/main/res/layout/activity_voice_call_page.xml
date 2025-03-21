@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/white"
+    tools:context=".VoiceCallPage">
+
+    <RelativeLayout
+        android:layout_marginLeft="20dp"
+        android:layout_marginRight="20dp"
+        android:layout_marginBottom="30dp"
+        android:background="@color/white"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <TextView
+            android:id="@+id/CallName"
+            android:text="Henry Benjamin"
+            android:layout_marginTop="60dp"
+            android:textSize="20sp"
+            android:textColor="#1D1D1D"
+            android:textStyle="bold"
+            android:layout_centerHorizontal="true"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+
+        <ImageView
+            android:id="@+id/ProfilePic"
+            android:layout_marginTop="100dp"
+            android:layout_below="@id/CallName"
+            android:layout_centerHorizontal="true"
+            android:src="@drawable/chatprofilepicture1"
+            android:layout_width="200dp"
+            android:layout_height="200dp"/>
+
+        <TextView
+            android:layout_below="@id/ProfilePic"
+            android:text="10:32"
+            android:textStyle="bold"
+            android:textSize="20sp"
+            android:textColor="#1D1D1D"
+            android:layout_centerHorizontal="true"
+            android:layout_marginTop="20dp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+
+        <RelativeLayout
+            android:background="@drawable/text_background"
+            android:layout_alignParentBottom="true"
+            android:layout_width="match_parent"
+            android:layout_height="70dp">
+
+            <Button
+                android:layout_marginLeft="15dp"
+                android:layout_centerVertical="true"
+                android:id="@+id/Options"
+                android:layout_width="45dp"
+                android:layout_height="45dp"
+                android:background="@drawable/optionslogo"/>
+
+            <Button
+                android:id="@+id/VideoCall"
+                android:layout_marginLeft="15dp"
+                android:layout_centerVertical="true"
+                android:layout_toRightOf="@id/Options"
+                android:layout_width="45dp"
+                android:layout_height="45dp"
+                android:background="@drawable/videologo"/>
+
+            <Button
+                android:id="@+id/Speaker"
+                android:layout_marginLeft="15dp"
+                android:layout_centerVertical="true"
+                android:layout_toRightOf="@id/VideoCall"
+                android:layout_width="45dp"
+                android:layout_height="45dp"
+                android:background="@drawable/speakerlogo"/>
+
+            <Button
+                android:id="@+id/Mic"
+                android:layout_marginLeft="15dp"
+                android:layout_centerVertical="true"
+                android:layout_toRightOf="@id/Speaker"
+                android:layout_width="45dp"
+                android:layout_height="45dp"
+                android:background="@drawable/mutelogo"/>
+
+            <Button
+                android:id="@+id/Chat"
+                android:layout_marginLeft="15dp"
+                android:layout_centerVertical="true"
+                android:layout_toRightOf="@id/Mic"
+                android:layout_width="45dp"
+                android:layout_height="45dp"
+                android:background="@drawable/endcalllogo"/>
+
+        </RelativeLayout>
+
+    </RelativeLayout>
+
+</RelativeLayout>

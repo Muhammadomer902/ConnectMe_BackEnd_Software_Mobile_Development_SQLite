@@ -1,0 +1,278 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:background="@color/white"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".ChatPage">
+
+    <RelativeLayout
+        android:layout_marginLeft="20dp"
+        android:layout_marginRight="20dp"
+        android:layout_marginBottom="30dp"
+        android:background="@color/white"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <RelativeLayout
+            android:id="@+id/HeaderBar"
+            android:layout_marginTop="25dp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <Button
+                android:id="@+id/Back"
+                android:layout_centerVertical="true"
+                android:background="@drawable/backlogo"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_alignParentStart="true"
+                android:layout_marginRight="10dp"/>
+
+            <TextView
+                android:id="@+id/Username"
+                android:layout_centerVertical="true"
+                android:text="Henry Benjamin"
+                android:textSize="20sp"
+                android:textColor="#303032"
+                android:layout_toRightOf="@id/Back"
+                android:textStyle="bold"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"/>
+
+            <Button
+                android:id="@+id/VideoCall"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="@drawable/videocalllogo"
+                android:layout_alignParentEnd="true"/>
+
+            <Button
+                android:id="@+id/VoiceCall"
+                android:layout_width="35dp"
+                android:layout_height="35dp"
+                android:layout_marginTop="5dp"
+                android:background="@drawable/voicecalllogo"
+                android:layout_toLeftOf="@id/VideoCall"
+                android:layout_marginRight="20dp"/>
+
+        </RelativeLayout>
+
+        <RelativeLayout
+            android:id="@+id/ChatPerson"
+            android:layout_below="@id/HeaderBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <ImageView
+                android:id="@+id/ProfilePic"
+                android:layout_marginTop="30dp"
+                android:src="@drawable/chatprofilepicture1"
+                android:layout_centerHorizontal="true"
+                android:layout_width="80dp"
+                android:layout_height="80dp"/>
+
+            <Button
+                android:id="@+id/Profile"
+                android:layout_centerHorizontal="true"
+                android:layout_below="@id/ProfilePic"
+                android:text="View Profile"
+                android:textAllCaps="false"
+                android:background="@drawable/grey_rectangle_button"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:paddingHorizontal="20dp"
+                android:textStyle="bold"
+                android:textSize="15sp"
+                android:layout_marginTop="20dp"/>
+
+        </RelativeLayout>
+
+<!--        <Button-->
+<!--            android:id="@+id/VanishingChat"-->
+<!--            android:layout_width="wrap_content"-->
+<!--            android:layout_height="wrap_content"-->
+<!--            android:text="Vanishing Chat"-->
+<!--            android:layout_below="@id/ChatPerson"-->
+<!--            android:layout_centerHorizontal="true"-->
+<!--            android:layout_marginStart="16dp"-->
+<!--            android:layout_marginTop="200dp"/>-->
+
+        <RelativeLayout
+            android:id="@+id/ChatBox"
+            android:layout_below="@id/ChatPerson"
+            android:layout_width="match_parent"
+            android:layout_height="430dp">
+
+            <RelativeLayout
+                android:id="@+id/Chat1"
+                android:layout_alignParentBottom="true"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content">
+
+                <ImageView
+                    android:id="@+id/ProfilePic1"
+                    android:layout_marginBottom="20dp"
+                    android:src="@drawable/chatprofilepicture1"
+                    android:layout_width="50dp"
+                    android:layout_height="50dp"/>
+
+                <TextView
+                    android:id="@+id/Text1"
+                    android:layout_toRightOf="@+id/ProfilePic1"
+                    android:text="Good to know"
+                    android:textSize="20sp"
+                    android:paddingHorizontal="20dp"
+                    android:paddingVertical="10dp"
+                    android:textColor="#1D1D1D"
+                    android:background="@drawable/chat_rectangle_button"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginLeft="20dp"/>
+
+                <TextView
+                    android:layout_below="@+id/Text1"
+                    android:text="01:30"
+                    android:layout_marginTop="5dp"
+                    android:layout_marginLeft="40dp"
+                    android:layout_toRightOf="@id/ProfilePic1"
+                    android:textColor="#B1B8C0"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"/>
+
+            </RelativeLayout>
+
+            <RelativeLayout
+                android:id="@+id/UserChat1"
+                android:layout_above="@+id/Chat1"
+                android:layout_alignParentRight="true"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content">
+
+                <TextView
+                    android:id="@+id/UserText1"
+                    android:text="I am doing well"
+                    android:textSize="20sp"
+                    android:paddingHorizontal="20dp"
+                    android:paddingVertical="10dp"
+                    android:textColor="#1D1D1D"
+                    android:background="@drawable/chat_rectangle_button"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginLeft="20dp"/>
+
+                <TextView
+                    android:layout_below="@+id/UserText1"
+                    android:layout_alignEnd="@+id/UserText1"
+                    android:text="01:30"
+                    android:layout_marginTop="5dp"
+                    android:layout_marginRight="20dp"
+                    android:textColor="#B1B8C0"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"/>
+
+            </RelativeLayout>
+
+            <RelativeLayout
+                android:id="@+id/Chat2"
+                android:layout_above="@+id/UserChat1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content">
+
+                <ImageView
+                    android:id="@+id/ProfilePic2"
+                    android:layout_marginBottom="20dp"
+                    android:src="@drawable/chatprofilepicture1"
+                    android:layout_width="50dp"
+                    android:layout_height="50dp"/>
+
+                <TextView
+                    android:id="@+id/Text2"
+                    android:maxWidth="300dp"
+                    android:layout_toRightOf="@+id/ProfilePic2"
+                    android:text="Hi, I am good, Wbu?"
+                    android:textSize="20sp"
+                    android:paddingHorizontal="20dp"
+                    android:paddingVertical="10dp"
+                    android:textColor="#1D1D1D"
+                    android:background="@drawable/chat_rectangle_button"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginLeft="20dp"/>
+
+                <TextView
+                    android:layout_below="@+id/Text2"
+                    android:text="10:32"
+                    android:layout_marginTop="5dp"
+                    android:layout_marginLeft="40dp"
+                    android:layout_toRightOf="@id/ProfilePic2"
+                    android:textColor="#B1B8C0"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"/>
+
+            </RelativeLayout>
+
+            <RelativeLayout
+                android:id="@+id/UserChat2"
+                android:layout_above="@+id/Chat2"
+                android:layout_alignParentRight="true"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content">
+
+                <TextView
+                    android:id="@+id/UserText2"
+                    android:maxWidth="300dp"
+                    android:text="Hello, How are you?"
+                    android:textSize="20sp"
+                    android:paddingHorizontal="20dp"
+                    android:paddingVertical="10dp"
+                    android:textColor="#1D1D1D"
+                    android:background="@drawable/chat_rectangle_button"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginLeft="20dp"/>
+
+                <TextView
+                    android:layout_below="@+id/UserText2"
+                    android:layout_alignEnd="@+id/UserText2"
+                    android:text="10:30"
+                    android:layout_marginTop="5dp"
+                    android:layout_marginRight="20dp"
+                    android:textColor="#B1B8C0"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"/>
+
+            </RelativeLayout>
+
+        </RelativeLayout>
+
+        <RelativeLayout
+            android:id="@+id/TextBar"
+            android:layout_alignParentBottom="true"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <EditText
+                android:background="@drawable/text_background"
+                android:layout_width="match_parent"
+                android:hint="Typing..."
+                android:textColorHint="#CAC4BE"
+                android:padding="20dp"
+                android:layout_height="wrap_content"/>
+
+            <ImageView
+                android:layout_alignParentEnd="true"
+                android:layout_marginTop="22dp"
+                android:src="@drawable/sendlogo"
+                android:layout_marginRight="20dp"
+                android:layout_width="20dp"
+                android:layout_height="20dp"/>
+
+        </RelativeLayout>
+
+    </RelativeLayout>
+
+</RelativeLayout>

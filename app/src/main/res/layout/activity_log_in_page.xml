@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/white"
+    tools:context=".LogInPage">
+
+    <RelativeLayout
+        android:layout_marginLeft="20dp"
+        android:layout_marginRight="20dp"
+        android:layout_marginBottom="25dp"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <View
+            android:id="@+id/AppLogo"
+            android:layout_width="200dp"
+            android:layout_height="150dp"
+            android:layout_marginBottom="30dp"
+            android:layout_marginTop="25dp"
+            android:layout_centerHorizontal="true"
+            android:background="@drawable/applogonotext"/>
+
+        <TextView
+            android:id="@+id/WelcomeText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Welcome!"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:textColor="#303032"
+            android:layout_below="@id/AppLogo"/>
+
+        <TextView
+            android:id="@+id/WelcomingText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="We’re happy to see you. Please login to continue."
+            android:textSize="20sp"
+            android:textColor="#303032"
+            android:layout_below="@id/WelcomeText"/>
+
+        <EditText
+            android:id="@+id/Username"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:layout_below="@id/WelcomingText"
+            android:layout_marginTop="20dp"
+            android:hint="Username"
+            android:padding="10dp"
+            android:background="@null"
+            android:inputType="text"/>
+
+        <EditText
+            android:id="@+id/Password"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:layout_below="@id/Username"
+            android:layout_marginTop="20dp"
+            android:hint="Password"
+            android:padding="10dp"
+            android:background="@null"
+            android:inputType="text"/>
+
+        <TextView
+            android:id="@+id/ForgotPassword"
+            android:textColor="#574836"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Forgot Password?"
+            android:layout_marginTop="10dp"
+            android:textSize="14sp"
+            android:layout_marginBottom="20dp"
+            android:layout_below="@id/Password"/>
+
+        <Button
+            android:id="@+id/myBtn"
+            android:layout_below="@id/ForgotPassword"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Login"
+            android:textAllCaps="false"
+            android:textColor="#FFFFFF"
+            android:textSize="20sp"
+            android:elevation="16dp"
+            android:background="@drawable/rectangle_button_green"/>
+
+        <View
+            android:id="@+id/Divider"
+            android:layout_width="match_parent"
+            android:layout_height="2dp"
+            android:layout_below="@id/myBtn"
+            android:layout_marginTop="25dp"
+            android:layout_marginBottom="10dp"
+            android:background="#303032"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#574836"
+            android:background="#F4F6FB"
+            android:layout_centerHorizontal="true"
+            android:layout_below="@id/myBtn"
+            android:layout_marginTop="10dp"
+            android:padding="5dp"
+            android:textStyle="bold"
+            android:text="or continue with"/>
+
+        <LinearLayout
+            android:id="@+id/Logos"
+            android:weightSum="3"
+            android:layout_below="@id/Divider"
+            android:layout_width="match_parent"
+            android:layout_height="125dp"
+            android:layout_marginLeft="20dp"
+            android:layout_marginRight="25dp">
+
+            <ImageView
+                android:layout_weight="1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/googlelogo"
+                android:layout_marginTop="10dp"/>
+
+            <ImageView
+                android:layout_weight="1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/applelogo"
+                android:layout_marginTop="10dp"/>
+
+            <ImageView
+                android:layout_weight="1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/facebooklogo"
+                android:layout_marginTop="10dp"/>
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_marginTop="-15dp"
+            android:layout_centerHorizontal="true"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/Logos"
+            android:orientation="horizontal">
+
+            <TextView
+                android:text="Don't have an account?"
+                android:textSize="20sp"
+                android:textColor="#303032"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"/>
+
+            <Button
+                android:id="@+id/Registeration"
+                android:textSize="20sp"
+                android:textColor="#574836"
+                android:textAllCaps="false"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@null"
+                android:text="Register"/>
+
+        </LinearLayout>
+
+    </RelativeLayout>
+
+</RelativeLayout>

@@ -1,0 +1,260 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:background="@color/white"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".GalleryPage">
+
+    <RelativeLayout
+        android:layout_marginLeft="20dp"
+        android:layout_marginRight="20dp"
+        android:background="@color/white"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <RelativeLayout
+            android:id="@+id/HeaderBar"
+            android:layout_marginTop="25dp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <Button
+                android:id="@+id/Cancel"
+                android:layout_centerVertical="true"
+                android:background="@drawable/crosssign"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_alignParentStart="true"
+                android:layout_marginRight="10dp"/>
+
+            <TextView
+                android:id="@+id/Username"
+                android:layout_centerVertical="true"
+                android:layout_centerHorizontal="true"
+                android:text="New post"
+                android:textSize="20sp"
+                android:textColor="#303032"
+                android:textStyle="bold"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"/>
+
+            <Button
+                android:layout_marginRight="-20dp"
+                android:background="@null"
+                android:id="@+id/FinalizePost"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Next"
+                android:textColor="#58442F"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:layout_alignParentTop="true"
+                android:layout_alignParentEnd="true"
+                android:textAllCaps="false"/>
+
+        </RelativeLayout>
+
+        <RelativeLayout
+            android:id="@+id/PictureSelected"
+            android:layout_below="@id/HeaderBar"
+
+            android:layout_marginTop="-190dp"
+            android:layout_marginLeft="20dp"
+            android:layout_marginRight="20dp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <ImageView
+                android:src="@drawable/selectedpicture"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"/>
+
+        </RelativeLayout>
+
+        <RelativeLayout
+            android:layout_marginTop="-170dp"
+            android:id="@+id/GalleryList"
+            android:layout_below="@+id/PictureSelected"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <RelativeLayout
+                android:id="@+id/GalleryListHeader"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <TextView
+                    android:id="@+id/Recent"
+                    android:text="Recents"
+                    android:textSize="18sp"
+                    android:textColor="#303032"
+                    android:textStyle="bold"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"/>
+
+                <ImageView
+                    android:id="@+id/Back"
+                    android:layout_centerVertical="true"
+                    android:background="@drawable/forwardlogo"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_toRightOf="@id/Recent"
+                    android:layout_marginLeft="5dp"/>
+
+                <ImageView
+                    android:id="@+id/Cameralogo"
+                    android:layout_alignParentRight="true"
+                    android:src="@drawable/cameralogo"
+
+                    android:layout_centerVertical="true"
+                    android:layout_width="25dp"
+                    android:layout_height="25dp"/>
+
+                <ImageView
+                    android:layout_toLeftOf="@id/Cameralogo"
+                    android:src="@drawable/gallreymultilogo"
+                    android:layout_marginRight="10dp"
+                    android:layout_centerVertical="true"
+                    android:layout_width="25dp"
+                    android:layout_height="25dp"/>
+
+            </RelativeLayout>
+
+            <ScrollView
+                android:id="@+id/PostScroll"
+                android:layout_below="@+id/GalleryListHeader"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="5dp"
+                android:fillViewport="true">
+
+                <GridLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:columnCount="4"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:id="@+id/PostPic1"
+                        android:src="@drawable/gallerypic1"
+                        android:layout_width="80dp"
+                        android:layout_height="80dp"
+                        android:layout_columnSpan="1"/>
+
+                    <ImageView
+                        android:id="@+id/PostPic2"
+                        android:src="@drawable/gallerypic2"
+                        android:layout_width="80dp"
+                        android:layout_height="80dp"
+                        android:layout_columnSpan="1"/>
+
+                    <ImageView
+                        android:id="@+id/PostPic3"
+                        android:src="@drawable/gallerypic3"
+                        android:layout_width="80dp"
+                        android:layout_height="80dp"
+                        android:layout_columnSpan="1"/>
+
+                    <ImageView
+                        android:id="@+id/PostPic4"
+                        android:src="@drawable/gallerypic4"
+                        android:layout_width="80dp"
+                        android:layout_height="80dp"
+                        android:layout_columnSpan="1"/>
+
+                    <ImageView
+                        android:id="@+id/PostPic5"
+                        android:src="@drawable/gallerypic5"
+                        android:layout_width="80dp"
+                        android:layout_height="80dp"
+                        android:layout_columnSpan="1"/>
+
+                    <ImageView
+                        android:id="@+id/PostPic6"
+                        android:src="@drawable/gallerypic6"
+                        android:layout_width="80dp"
+                        android:layout_height="80dp"
+                        android:layout_columnSpan="1"/>
+
+                    <ImageView
+                        android:id="@+id/PostPic7"
+                        android:src="@drawable/gallerypic7"
+                        android:layout_width="80dp"
+                        android:layout_height="80dp"
+                        android:layout_columnSpan="1"/>
+
+                    <ImageView
+                        android:id="@+id/PostPic8"
+                        android:src="@drawable/gallerypic8"
+                        android:layout_width="80dp"
+                        android:layout_height="80dp"
+                        android:layout_columnSpan="1"/>
+
+                    <ImageView
+                        android:id="@+id/PostPic9"
+                        android:src="@drawable/gallerypic9"
+                        android:layout_width="80dp"
+                        android:layout_height="80dp"
+                        android:layout_columnSpan="1"/>
+
+                    <ImageView
+                        android:id="@+id/PostPic10"
+                        android:src="@drawable/gallerypic10"
+                        android:layout_width="80dp"
+                        android:layout_height="80dp"
+                        android:layout_columnSpan="1"/>
+
+                    <ImageView
+                        android:id="@+id/PostPic11"
+                        android:src="@drawable/gallerypic11"
+                        android:layout_width="80dp"
+                        android:layout_height="80dp"
+                        android:layout_columnSpan="1"/>
+
+                    <ImageView
+                        android:id="@+id/PostPic12"
+                        android:src="@drawable/gallerypic12"
+                        android:layout_width="80dp"
+                        android:layout_height="80dp"
+                        android:layout_columnSpan="1"/>
+
+                    <ImageView
+                        android:id="@+id/PostPic13"
+                        android:src="@drawable/gallerypic13"
+                        android:layout_width="80dp"
+                        android:layout_height="80dp"
+                        android:layout_columnSpan="1"/>
+
+                    <ImageView
+                        android:id="@+id/PostPic14"
+                        android:src="@drawable/gallerypic14"
+                        android:layout_width="80dp"
+                        android:layout_height="80dp"
+                        android:layout_columnSpan="1"/>
+
+                    <ImageView
+                        android:id="@+id/PostPic15"
+                        android:src="@drawable/gallerypic15"
+                        android:layout_width="80dp"
+                        android:layout_height="80dp"
+                        android:layout_columnSpan="1"/>
+
+                    <ImageView
+                        android:id="@+id/PostPic16"
+                        android:src="@drawable/gallerypic16"
+                        android:layout_width="80dp"
+                        android:layout_height="80dp"
+                        android:layout_columnSpan="1"/>
+
+                </GridLayout>
+
+            </ScrollView>
+
+        </RelativeLayout>
+
+    </RelativeLayout>
+
+</RelativeLayout>

@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:background="@color/white"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".SearchPage">
+
+    <RelativeLayout
+        android:layout_marginLeft="35dp"
+        android:layout_marginRight="30dp"
+        android:background="@color/white"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <RelativeLayout
+            android:id="@+id/SearchBar"
+            android:layout_marginTop="40dp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content">
+
+            <EditText
+                android:id="@+id/Search"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Search"
+                android:textColor="#A8A9AB"
+                android:layout_centerVertical="true"
+                android:background="@drawable/search_button"
+                android:paddingEnd="10dp"
+                android:layout_marginTop="10dp"/>
+
+            <Button
+                android:id="@+id/SearchLogo"
+                android:background="@drawable/searchlogo"
+                android:layout_centerVertical="true"
+                android:layout_width="25dp"
+                android:layout_height="25dp"
+                android:layout_alignParentRight="true"/>
+
+        </RelativeLayout>
+
+        <TextView
+            android:layout_marginTop="30dp"
+            android:id="@+id/Heading"
+            android:layout_below="@id/SearchBar"
+            android:text="Recent searches"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="#58442F"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+
+        <RelativeLayout
+            android:id="@+id/SearchList"
+            android:layout_marginTop="30dp"
+            android:layout_marginBottom="70dp"
+            android:layout_below="@id/Heading"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <RelativeLayout
+                android:id="@+id/SearchPerson1"
+                android:layout_marginBottom="10dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <Button
+                    android:id="@+id/SearchUsername"
+                    android:text="Henry Benjamin"
+                    android:textAllCaps="false"
+                    android:background="@null"
+                    android:textSize="18sp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"/>
+
+                <ImageView
+                    android:layout_alignParentRight="true"
+                    android:src="@drawable/crosssign"
+                    android:layout_marginRight="5dp"
+                    android:layout_centerVertical="true"
+                    android:layout_width="25dp"
+                    android:layout_height="25dp"/>
+
+            </RelativeLayout>
+
+            <RelativeLayout
+                android:id="@+id/SearchPerson2"
+                android:layout_below="@id/SearchPerson1"
+                android:layout_marginBottom="10dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <Button
+                    android:id="@+id/SearchUsername2"
+                    android:text="Emily James"
+                    android:textAllCaps="false"
+                    android:background="@null"
+                    android:textSize="18sp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"/>
+
+                <ImageView
+                    android:layout_alignParentRight="true"
+                    android:src="@drawable/crosssign"
+                    android:layout_marginRight="5dp"
+                    android:layout_centerVertical="true"
+                    android:layout_width="25dp"
+                    android:layout_height="25dp"/>
+
+            </RelativeLayout>
+
+            <RelativeLayout
+                android:id="@+id/SearchPerson3"
+                android:layout_below="@id/SearchPerson2"
+                android:layout_marginBottom="10dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <Button
+                    android:id="@+id/SearchUsername3"
+                    android:text="Lily Thomas"
+                    android:textAllCaps="false"
+                    android:background="@null"
+                    android:textSize="18sp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"/>
+
+                <ImageView
+                    android:layout_alignParentRight="true"
+                    android:src="@drawable/crosssign"
+                    android:layout_marginRight="5dp"
+                    android:layout_centerVertical="true"
+                    android:layout_width="25dp"
+                    android:layout_height="25dp"/>
+
+            </RelativeLayout>
+
+        </RelativeLayout>
+
+    </RelativeLayout>
+
+    <RelativeLayout
+        android:layout_alignParentBottom="true"
+        android:layout_width="wrap_content"
+        android:layout_height="70dp">
+
+        <Button
+            android:id="@+id/Home"
+            android:background="@drawable/housesymbolgrey"
+            android:layout_centerVertical="true"
+            android:layout_width="25dp"
+            android:layout_height="35dp"
+            android:layout_marginLeft="30dp"
+            android:layout_marginRight="20dp"/>
+
+        <Button
+            android:id="@+id/myBtn"
+            android:background="@drawable/searchsymbolgreen"
+            android:layout_centerVertical="true"
+            android:layout_width="25dp"
+            android:layout_height="35dp"
+            android:layout_toRightOf="@id/Home"
+            android:layout_marginLeft="20dp"
+            android:layout_marginRight="20dp"/>
+
+        <ImageButton
+            android:id="@+id/NewPost"
+            android:src="@drawable/plus_sign"
+            android:background="@drawable/green_circle"
+            android:layout_width="45dp"
+            android:layout_height="45dp"
+            android:layout_centerVertical="true"
+            android:layout_toRightOf="@id/myBtn"
+            android:layout_marginLeft="15dp"
+            android:layout_marginRight="15dp"/>
+
+        <Button
+            android:id="@+id/Profile"
+            android:background="@drawable/profilelogogrey"
+            android:layout_width="25dp"
+            android:layout_height="35dp"
+            android:layout_centerVertical="true"
+            android:layout_toRightOf="@id/NewPost"
+            android:layout_marginLeft="20dp"
+            android:layout_marginRight="20dp"/>
+
+        <Button
+            android:id="@+id/Contact"
+            android:background="@drawable/contactslogogrey"
+            android:layout_width="30dp"
+            android:layout_height="35dp"
+            android:layout_centerVertical="true"
+            android:layout_toRightOf="@id/Profile"
+            android:layout_marginLeft="20dp"
+            android:layout_marginRight="20dp"/>
+
+    </RelativeLayout>
+
+</RelativeLayout>

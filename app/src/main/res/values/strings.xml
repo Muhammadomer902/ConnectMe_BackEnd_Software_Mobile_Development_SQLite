@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">i220921</string>
+
+    <string name="TermsAndAgreement_2"><b><u>Terms of Service</u></b> <font color="#303032">and</font> <b><u>Privacy Policy</u></b></string>
+
+    <string name="Caption"><b>Emily James</b> Had a great hike across this beautiful landscape</string>
+
+    <string name="Caption2"><b>Kadin Bergson</b> Had a great hike across this beautiful landscape</string>
+
+</resources>
