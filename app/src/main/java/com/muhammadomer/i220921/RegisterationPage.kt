@@ -6,8 +6,7 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import com.google.firebase.database.DatabaseReference
-import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.*
 
 class RegisterationPage : AppCompatActivity() {
 
@@ -38,6 +37,14 @@ class RegisterationPage : AppCompatActivity() {
         registerButton.setOnClickListener {
             saveUserData()
         }
+
+        var logIn = findViewById<Button>(R.id.LogIn)
+        logIn.setOnClickListener {
+            val intent = Intent(this, LogInPage::class.java)
+            startActivity(intent)
+
+        }
+
     }
 
     private fun saveUserData() {
@@ -52,25 +59,68 @@ class RegisterationPage : AppCompatActivity() {
             return
         }
 
-        // Create a unique key for each user
-        val userId = database.push().key ?: return
+        // ✅ Check for existing username and email
+        checkIfUserExists(userUsername, userEmail) { exists, field ->
+            if (exists) {
+                when (field) {
+                    "username" -> Toast.makeText(this, "Username already exists", Toast.LENGTH_SHORT).show()
+                    "email" -> Toast.makeText(this, "Email already registered", Toast.LENGTH_SHORT).show()
+                }
+            } else {
+                registerUser(userName, userUsername, userPhoneNumber, userEmail, userPassword)
+            }
+        }
+    }
 
+    private fun checkIfUserExists(username: String, email: String, callback: (Boolean, String?) -> Unit) {
+        // ✅ Check for duplicate username
+        database.orderByChild("username").equalTo(username)
+            .addListenerForSingleValueEvent(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    if (snapshot.exists()) {
+                        callback(true, "username")
+                    } else {
+                        // ✅ Check for duplicate email only if username is not found
+                        database.orderByChild("email").equalTo(email)
+                            .addListenerForSingleValueEvent(object : ValueEventListener {
+                                override fun onDataChange(snapshot: DataSnapshot) {
+                                    if (snapshot.exists()) {
+                                        callback(true, "email")
+                                    } else {
+                                        callback(false, null)
+                                    }
+                                }
+
+                                override fun onCancelled(error: DatabaseError) {
+                                    Toast.makeText(this@RegisterationPage, "Error: ${error.message}", Toast.LENGTH_SHORT).show()
+                                }
+                            })
+                    }
+                }
+
+                override fun onCancelled(error: DatabaseError) {
+                    Toast.makeText(this@RegisterationPage, "Error: ${error.message}", Toast.LENGTH_SHORT).show()
+                }
+            })
+    }
+
+    private fun registerUser(name: String, username: String, phoneNumber: String, email: String, password: String) {
+        val userId = database.push().key ?: return
         val registerUser = userCredential(
-            name = userName,
-            username = userUsername,
-            phoneNumber = userPhoneNumber,
-            email = userEmail,
-            password = userPassword
+            name = name,
+            username = username,
+            phoneNumber = phoneNumber,
+            email = email,
+            password = password
         )
 
-        // Save to Firebase
         database.child(userId).setValue(registerUser)
             .addOnSuccessListener {
                 Toast.makeText(this, "User Registered Successfully", Toast.LENGTH_SHORT).show()
                 clearFields()
                 val intent = Intent(this, LogInPage::class.java)
                 startActivity(intent)
-                finish() // Finish current activity to prevent going back to it using back button
+                finish()
             }
             .addOnFailureListener {
                 Toast.makeText(this, "Failed to register user", Toast.LENGTH_SHORT).show()
