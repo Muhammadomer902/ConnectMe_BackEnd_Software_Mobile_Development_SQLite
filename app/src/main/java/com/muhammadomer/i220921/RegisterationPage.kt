@@ -6,6 +6,7 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
 
 class RegisterationPage : AppCompatActivity() {
@@ -18,10 +19,14 @@ class RegisterationPage : AppCompatActivity() {
     private lateinit var registerButton: Button
 
     private lateinit var database: DatabaseReference
+    private lateinit var auth: FirebaseAuth
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_registeration_page)
+
+        // Setting up Authorization
+        auth = FirebaseAuth.getInstance()
 
         // Initialize Firebase reference
         database = FirebaseDatabase.getInstance().getReference("RegisteredUsers")
@@ -42,9 +47,7 @@ class RegisterationPage : AppCompatActivity() {
         logIn.setOnClickListener {
             val intent = Intent(this, LogInPage::class.java)
             startActivity(intent)
-
         }
-
     }
 
     private fun saveUserData() {
@@ -59,7 +62,7 @@ class RegisterationPage : AppCompatActivity() {
             return
         }
 
-        // ✅ Check for existing username and email
+        // Check for existing username and email
         checkIfUserExists(userUsername, userEmail) { exists, field ->
             if (exists) {
                 when (field) {
@@ -73,14 +76,14 @@ class RegisterationPage : AppCompatActivity() {
     }
 
     private fun checkIfUserExists(username: String, email: String, callback: (Boolean, String?) -> Unit) {
-        // ✅ Check for duplicate username
+        // Check for duplicate username
         database.orderByChild("username").equalTo(username)
             .addListenerForSingleValueEvent(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
                     if (snapshot.exists()) {
                         callback(true, "username")
                     } else {
-                        // ✅ Check for duplicate email only if username is not found
+                        // Check for duplicate email only if username is not found
                         database.orderByChild("email").equalTo(email)
                             .addListenerForSingleValueEvent(object : ValueEventListener {
                                 override fun onDataChange(snapshot: DataSnapshot) {
@@ -105,27 +108,37 @@ class RegisterationPage : AppCompatActivity() {
     }
 
     private fun registerUser(name: String, username: String, phoneNumber: String, email: String, password: String) {
-        val userId = database.push().key ?: return
-        val registerUser = userCredential(
-            name = name,
-            username = username,
-            phoneNumber = phoneNumber,
-            email = email,
-            password = password
-        )
+        // Register user in Firebase Authentication
+        auth.createUserWithEmailAndPassword(email, password)
+            .addOnCompleteListener(this) { task ->
+                if (task.isSuccessful) {
+                    val userId = database.push().key ?: return@addOnCompleteListener
+                    val registerUser = userCredential(
+                        name = name,
+                        username = username,
+                        phoneNumber = phoneNumber,
+                        email = email,
+                        password = password
+                    )
 
-        database.child(userId).setValue(registerUser)
-            .addOnSuccessListener {
-                Toast.makeText(this, "User Registered Successfully", Toast.LENGTH_SHORT).show()
-                clearFields()
-                val intent = Intent(this, LogInPage::class.java)
-                startActivity(intent)
-                finish()
-            }
-            .addOnFailureListener {
-                Toast.makeText(this, "Failed to register user", Toast.LENGTH_SHORT).show()
+                    // Save user details in Firebase Realtime Database
+                    database.child(userId).setValue(registerUser)
+                        .addOnSuccessListener {
+                            Toast.makeText(this, "User Registered Successfully", Toast.LENGTH_SHORT).show()
+                            clearFields()
+                            val intent = Intent(this, EditProfilePage::class.java)
+                            startActivity(intent)
+                            finish()
+                        }
+                        .addOnFailureListener {
+                            Toast.makeText(this, "Failed to register user", Toast.LENGTH_SHORT).show()
+                        }
+                } else {
+                    Toast.makeText(this, "Authentication failed: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
+                }
             }
     }
+
 
     private fun clearFields() {
         name.text.clear()
@@ -135,3 +148,4 @@ class RegisterationPage : AppCompatActivity() {
         password.text.clear()
     }
 }
+
