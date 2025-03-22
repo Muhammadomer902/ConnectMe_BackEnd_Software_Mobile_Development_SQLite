@@ -33,7 +33,7 @@ class LogInPage : AppCompatActivity() {
         loginBtn = findViewById(R.id.myBtn)
         registerBtn = findViewById(R.id.Registeration)
 
-        // ✅ Check if user is already logged in
+        // Check if user is already logged in
         if (auth.currentUser != null) {
             // If user is already logged in, go to HomePage
             val intent = Intent(this, HomePage::class.java)
@@ -71,7 +71,7 @@ class LogInPage : AppCompatActivity() {
                         if (storedPassword == password) {
                             loginSuccessful = true
 
-                            // ✅ Sign in with Firebase Auth
+                            // Sign in with Firebase Auth
                             auth.signInWithEmailAndPassword(email, password)
                                 .addOnCompleteListener { task ->
                                     if (task.isSuccessful) {
