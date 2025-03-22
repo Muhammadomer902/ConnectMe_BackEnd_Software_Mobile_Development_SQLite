@@ -7,10 +7,12 @@ import android.widget.EditText
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
 
 class LogInPage : AppCompatActivity() {
 
+    private lateinit var auth: FirebaseAuth
     private lateinit var database: DatabaseReference
     private lateinit var usernameInput: EditText
     private lateinit var passwordInput: EditText
@@ -22,13 +24,22 @@ class LogInPage : AppCompatActivity() {
         enableEdgeToEdge()
         setContentView(R.layout.activity_log_in_page)
 
-        // Initialize Firebase Database
+        // Initialize Firebase
+        auth = FirebaseAuth.getInstance()
         database = FirebaseDatabase.getInstance().getReference("RegisteredUsers")
 
         usernameInput = findViewById(R.id.Username)
         passwordInput = findViewById(R.id.Password)
         loginBtn = findViewById(R.id.myBtn)
         registerBtn = findViewById(R.id.Registeration)
+
+        // ✅ Check if user is already logged in
+        if (auth.currentUser != null) {
+            // If user is already logged in, go to HomePage
+            val intent = Intent(this, HomePage::class.java)
+            startActivity(intent)
+            finish()
+        }
 
         // Handle login button click
         loginBtn.setOnClickListener {
@@ -56,12 +67,22 @@ class LogInPage : AppCompatActivity() {
                     var loginSuccessful = false
                     for (userSnapshot in dataSnapshot.children) {
                         val storedPassword = userSnapshot.child("password").value.toString()
+                        val email = userSnapshot.child("email").value.toString()
                         if (storedPassword == password) {
                             loginSuccessful = true
-                            Toast.makeText(this, "Login successful", Toast.LENGTH_SHORT).show()
-                            val intent = Intent(this, HomePage::class.java)
-                            startActivity(intent)
-                            finish()
+
+                            // ✅ Sign in with Firebase Auth
+                            auth.signInWithEmailAndPassword(email, password)
+                                .addOnCompleteListener { task ->
+                                    if (task.isSuccessful) {
+                                        Toast.makeText(this, "Login successful", Toast.LENGTH_SHORT).show()
+                                        val intent = Intent(this, HomePage::class.java)
+                                        startActivity(intent)
+                                        finish()
+                                    } else {
+                                        Toast.makeText(this, "Authentication failed: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
                             break
                         }
                     }

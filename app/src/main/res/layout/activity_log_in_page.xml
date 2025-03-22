@@ -68,7 +68,7 @@
                 android:hint="Password"
                 android:padding="10dp"
                 android:background="@null"
-                android:inputType="text"/>
+                android:inputType="textPassword"/>
 
             <TextView
                 android:id="@+id/ForgotPassword"
