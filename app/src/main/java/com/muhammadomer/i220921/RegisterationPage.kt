@@ -112,13 +112,18 @@ class RegisterationPage : AppCompatActivity() {
         auth.createUserWithEmailAndPassword(email, password)
             .addOnCompleteListener(this) { task ->
                 if (task.isSuccessful) {
-                    val userId = database.push().key ?: return@addOnCompleteListener
+                    val userId = database.push().key.toString()
                     val registerUser = userCredential(
                         name = name,
                         username = username,
                         phoneNumber = phoneNumber,
                         email = email,
-                        password = password
+                        password = password,
+                        bio = "", // Initialize empty bio
+                        profileImage = "", // Initialize empty profile image
+                        posts = emptyList(),
+                        followers = emptyList(),
+                        following = emptyList()
                     )
 
                     // Save user details in Firebase Realtime Database
@@ -126,7 +131,9 @@ class RegisterationPage : AppCompatActivity() {
                         .addOnSuccessListener {
                             Toast.makeText(this, "User Registered Successfully", Toast.LENGTH_SHORT).show()
                             clearFields()
-                            val intent = Intent(this, EditProfilePage::class.java)
+                            val intent = Intent(this, EditProfilePage::class.java).apply {
+                                putExtra("USER_ID", userId)
+                            }
                             startActivity(intent)
                             finish()
                         }
@@ -140,6 +147,7 @@ class RegisterationPage : AppCompatActivity() {
     }
 
 
+
     private fun clearFields() {
         name.text.clear()
         username.text.clear()
@@ -148,4 +156,3 @@ class RegisterationPage : AppCompatActivity() {
         password.text.clear()
     }
 }
-

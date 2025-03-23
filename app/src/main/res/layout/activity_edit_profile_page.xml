@@ -61,10 +61,10 @@
                 android:layout_height="wrap_content">
 
                 <ImageView
-                    android:alpha="0.8"
+                    android:alpha="0.5"
                     android:id="@+id/ProfilePicture"
                     android:layout_centerHorizontal="true"
-                    android:src="@drawable/profilepicture"
+                    android:src="@drawable/dummyprofilepic"
                     android:layout_width="150dp"
                     android:layout_height="150dp"/>
 
@@ -113,6 +113,7 @@
 
                     <EditText
                         android:layout_below="@id/Heading"
+                        android:id="@+id/nameEditText"
                         android:layout_marginTop="5dp"
                         android:hint="Olivia Daniel"
                         android:paddingVertical="10dp"
@@ -142,6 +143,7 @@
 
                     <EditText
                         android:layout_below="@id/Heading2"
+                        android:id="@+id/usernameEditText"
                         android:layout_marginTop="5dp"
                         android:hint="OliviaD"
                         android:textColorHint="#CAC4BE"
@@ -171,6 +173,7 @@
 
                     <EditText
                         android:layout_below="@id/Heading3"
+                        android:id="@+id/contactEditText"
                         android:layout_marginTop="5dp"
                         android:hint="+42 7412 5443058"
                         android:textColorHint="#CAC4BE"
@@ -201,6 +204,7 @@
 
                     <EditText
                         android:layout_toRightOf="@id/Heading4"
+                        android:id="@+id/bioEditText"
                         android:layout_marginTop="-5dp"
                         android:layout_marginLeft="25dp"
                         android:hint="Just  an average 14 year old"
