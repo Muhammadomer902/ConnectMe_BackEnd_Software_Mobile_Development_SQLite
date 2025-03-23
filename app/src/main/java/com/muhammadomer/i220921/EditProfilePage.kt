@@ -58,7 +58,6 @@ class EditProfilePage : AppCompatActivity() {
         updateButton = findViewById(R.id.myBtn)
         usernameDisplay = findViewById(R.id.Username)
 
-        // Retrieve userId directly from FirebaseAuth
         userId = auth.currentUser?.uid
 
         if (userId == null) {
@@ -117,6 +116,31 @@ class EditProfilePage : AppCompatActivity() {
         encodedImage = Base64.encodeToString(byteArray, Base64.DEFAULT)
     }
 
+    private fun checkUsernameUnique(newUsername: String, currentUserId: String, onResult: (Boolean) -> Unit) {
+        database.orderByChild("username").equalTo(newUsername)
+            .addListenerForSingleValueEvent(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    if (snapshot.exists()) {
+                        for (userSnapshot in snapshot.children) {
+                            val userKey = userSnapshot.key
+                            if (userKey != currentUserId) {
+                                onResult(false) // Username exists for another user
+                                return
+                            }
+                        }
+                        onResult(true) // Username is either not used or only by the current user
+                    } else {
+                        onResult(true) // Username doesn’t exist in the database
+                    }
+                }
+
+                override fun onCancelled(error: DatabaseError) {
+                    Toast.makeText(this@EditProfilePage, "Error checking username: ${error.message}", Toast.LENGTH_SHORT).show()
+                    onResult(false) // Default to false on error to prevent update
+                }
+            })
+    }
+
     private fun updateUserData(userId: String) {
         database.child(userId).addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
@@ -124,30 +148,23 @@ class EditProfilePage : AppCompatActivity() {
                     val user = snapshot.getValue(userCredential::class.java)
                     user?.let {
                         val updatedName = name.text.toString().trim().ifEmpty { it.name ?: "" }
-                        val updatedUsername = username.text.toString().trim().ifEmpty { it.username ?: "" }
+                        // Only update username if it’s non-empty; otherwise, keep the existing one
+                        val updatedUsernameInput = username.text.toString().trim()
+                        val updatedUsername = if (updatedUsernameInput.isNotEmpty()) updatedUsernameInput else it.username ?: ""
                         val updatedContact = contact.text.toString().trim().ifEmpty { it.phoneNumber ?: "" }
                         val updatedBio = bio.text.toString().trim().ifEmpty { it.bio ?: "" }
 
-                        val updates = mapOf(
-                            "name" to updatedName,
-                            "username" to updatedUsername,
-                            "phoneNumber" to updatedContact,
-                            "bio" to updatedBio,
-                            "profileImage" to (encodedImage ?: it.profileImage ?: "")
-                        )
-
-                        database.child(userId).updateChildren(updates)
-                            .addOnSuccessListener {
-                                Toast.makeText(this@EditProfilePage, "Profile updated successfully", Toast.LENGTH_SHORT).show()
-                                val intent = Intent(this@EditProfilePage, ProfilePage::class.java).apply {
-                                    putExtra("USER_ID", userId) // Still passing to ProfilePage
+                        if (updatedUsername != it.username && updatedUsername.isNotEmpty()) {
+                            checkUsernameUnique(updatedUsername, userId) { isUnique ->
+                                if (!isUnique) {
+                                    Toast.makeText(this@EditProfilePage, "Username already taken", Toast.LENGTH_SHORT).show()
+                                    return@checkUsernameUnique
                                 }
-                                startActivity(intent)
-                                finish()
+                                performUpdate(userId, updatedName, updatedUsername, updatedContact, updatedBio, it.profileImage)
                             }
-                            .addOnFailureListener {
-                                Toast.makeText(this@EditProfilePage, "Failed to update profile", Toast.LENGTH_SHORT).show()
-                            }
+                        } else {
+                            performUpdate(userId, updatedName, updatedUsername, updatedContact, updatedBio, it.profileImage)
+                        }
                     }
                 }
             }
@@ -156,5 +173,33 @@ class EditProfilePage : AppCompatActivity() {
                 Toast.makeText(this@EditProfilePage, "Failed to load data: ${error.message}", Toast.LENGTH_SHORT).show()
             }
         })
+    }
+
+    private fun performUpdate(
+        userId: String,
+        updatedName: String,
+        updatedUsername: String,
+        updatedContact: String,
+        updatedBio: String,
+        currentProfileImage: String?
+    ) {
+        val updates = mapOf(
+            "name" to updatedName,
+            "username" to updatedUsername,
+            "phoneNumber" to updatedContact,
+            "bio" to updatedBio,
+            "profileImage" to (encodedImage ?: currentProfileImage ?: "")
+        )
+
+        database.child(userId).updateChildren(updates)
+            .addOnSuccessListener {
+                Toast.makeText(this@EditProfilePage, "Profile updated successfully", Toast.LENGTH_SHORT).show()
+                val intent = Intent(this@EditProfilePage, ProfilePage::class.java)
+                startActivity(intent)
+                finish()
+            }
+            .addOnFailureListener {
+                Toast.makeText(this@EditProfilePage, "Failed to update profile", Toast.LENGTH_SHORT).show()
+            }
     }
 }
