@@ -12,12 +12,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
-import de.hdodenhof.circleimageview.CircleImageView // Import CircleImageView
+import de.hdodenhof.circleimageview.CircleImageView
 import java.io.ByteArrayOutputStream
 
 class EditProfilePage : AppCompatActivity() {
 
-    private lateinit var profileImage: CircleImageView // Changed to CircleImageView
+    private lateinit var profileImage: CircleImageView
     private lateinit var name: EditText
     private lateinit var username: EditText
     private lateinit var contact: EditText
@@ -50,7 +50,7 @@ class EditProfilePage : AppCompatActivity() {
         auth = FirebaseAuth.getInstance()
         database = FirebaseDatabase.getInstance().getReference("RegisteredUsers")
 
-        profileImage = findViewById(R.id.ProfilePicture) // Still works, type inferred as CircleImageView
+        profileImage = findViewById(R.id.ProfilePicture)
         name = findViewById(R.id.nameEditText)
         username = findViewById(R.id.usernameEditText)
         contact = findViewById(R.id.contactEditText)
@@ -58,7 +58,8 @@ class EditProfilePage : AppCompatActivity() {
         updateButton = findViewById(R.id.myBtn)
         usernameDisplay = findViewById(R.id.Username)
 
-        userId = intent.getStringExtra("USER_ID") ?: auth.currentUser?.uid
+        // Retrieve userId directly from FirebaseAuth
+        userId = auth.currentUser?.uid
 
         if (userId == null) {
             Toast.makeText(this, "User not authenticated", Toast.LENGTH_SHORT).show()
@@ -139,7 +140,7 @@ class EditProfilePage : AppCompatActivity() {
                             .addOnSuccessListener {
                                 Toast.makeText(this@EditProfilePage, "Profile updated successfully", Toast.LENGTH_SHORT).show()
                                 val intent = Intent(this@EditProfilePage, ProfilePage::class.java).apply {
-                                    putExtra("USER_ID", userId)
+                                    putExtra("USER_ID", userId) // Still passing to ProfilePage
                                 }
                                 startActivity(intent)
                                 finish()

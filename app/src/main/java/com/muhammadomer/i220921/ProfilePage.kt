@@ -15,14 +15,9 @@ class ProfilePage : AppCompatActivity() {
         enableEdgeToEdge()
         setContentView(R.layout.activity_profile_page)
 
-        // Get the USER_ID from the intent that opened this page
-        val userId = intent.getStringExtra("USER_ID")
-
         var editProfile = findViewById<Button>(R.id.EditProfile)
         editProfile.setOnClickListener {
-            val intent = Intent(this, EditProfilePage::class.java).apply {
-                putExtra("USER_ID", userId) // Pass the USER_ID to EditProfilePage
-            }
+            val intent = Intent(this, EditProfilePage::class.java)
             startActivity(intent)
         }
 

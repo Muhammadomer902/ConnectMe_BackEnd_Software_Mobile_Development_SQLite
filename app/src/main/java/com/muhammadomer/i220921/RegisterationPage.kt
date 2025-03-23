@@ -25,13 +25,9 @@ class RegisterationPage : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_registeration_page)
 
-        // Setting up Authorization
         auth = FirebaseAuth.getInstance()
-
-        // Initialize Firebase reference
         database = FirebaseDatabase.getInstance().getReference("RegisteredUsers")
 
-        // Initialize UI elements
         name = findViewById(R.id.Name)
         username = findViewById(R.id.Username)
         phoneNumber = findViewById(R.id.PhoneNumber)
@@ -62,7 +58,6 @@ class RegisterationPage : AppCompatActivity() {
             return
         }
 
-        // Check for existing username and email
         checkIfUserExists(userUsername, userEmail) { exists, field ->
             if (exists) {
                 when (field) {
@@ -76,14 +71,12 @@ class RegisterationPage : AppCompatActivity() {
     }
 
     private fun checkIfUserExists(username: String, email: String, callback: (Boolean, String?) -> Unit) {
-        // Check for duplicate username
         database.orderByChild("username").equalTo(username)
             .addListenerForSingleValueEvent(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
                     if (snapshot.exists()) {
                         callback(true, "username")
                     } else {
-                        // Check for duplicate email only if username is not found
                         database.orderByChild("email").equalTo(email)
                             .addListenerForSingleValueEvent(object : ValueEventListener {
                                 override fun onDataChange(snapshot: DataSnapshot) {
@@ -108,45 +101,43 @@ class RegisterationPage : AppCompatActivity() {
     }
 
     private fun registerUser(name: String, username: String, phoneNumber: String, email: String, password: String) {
-        // Register user in Firebase Authentication
         auth.createUserWithEmailAndPassword(email, password)
             .addOnCompleteListener(this) { task ->
                 if (task.isSuccessful) {
-                    val userId = database.push().key.toString()
-                    val registerUser = userCredential(
-                        name = name,
-                        username = username,
-                        phoneNumber = phoneNumber,
-                        email = email,
-                        password = password,
-                        bio = "", // Initialize empty bio
-                        profileImage = "", // Initialize empty profile image
-                        posts = emptyList(),
-                        followers = emptyList(),
-                        following = emptyList()
-                    )
+                    val userId = auth.currentUser?.uid // Use Firebase Auth UID instead of push().key
+                    if (userId != null) {
+                        val registerUser = userCredential(
+                            name = name,
+                            username = username,
+                            phoneNumber = phoneNumber,
+                            email = email,
+                            password = password,
+                            bio = "",
+                            profileImage = "",
+                            posts = emptyList(),
+                            followers = emptyList(),
+                            following = emptyList()
+                        )
 
-                    // Save user details in Firebase Realtime Database
-                    database.child(userId).setValue(registerUser)
-                        .addOnSuccessListener {
-                            Toast.makeText(this, "User Registered Successfully", Toast.LENGTH_SHORT).show()
-                            clearFields()
-                            val intent = Intent(this, EditProfilePage::class.java).apply {
-                                putExtra("USER_ID", userId)
+                        database.child(userId).setValue(registerUser)
+                            .addOnSuccessListener {
+                                Toast.makeText(this, "User Registered Successfully", Toast.LENGTH_SHORT).show()
+                                clearFields()
+                                val intent = Intent(this, EditProfilePage::class.java) // No need for USER_ID extra
+                                startActivity(intent)
+                                finish()
                             }
-                            startActivity(intent)
-                            finish()
-                        }
-                        .addOnFailureListener {
-                            Toast.makeText(this, "Failed to register user", Toast.LENGTH_SHORT).show()
-                        }
+                            .addOnFailureListener {
+                                Toast.makeText(this, "Failed to register user", Toast.LENGTH_SHORT).show()
+                            }
+                    } else {
+                        Toast.makeText(this, "Failed to get user ID", Toast.LENGTH_SHORT).show()
+                    }
                 } else {
                     Toast.makeText(this, "Authentication failed: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
                 }
             }
     }
-
-
 
     private fun clearFields() {
         name.text.clear()
