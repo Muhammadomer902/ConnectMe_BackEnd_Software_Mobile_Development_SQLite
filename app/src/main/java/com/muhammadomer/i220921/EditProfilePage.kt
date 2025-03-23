@@ -87,7 +87,7 @@ class EditProfilePage : AppCompatActivity() {
                         username.setHint(it.username ?: "")
                         contact.setHint(it.phoneNumber ?: "")
                         bio.setHint(it.bio.takeIf { b -> b?.isNotEmpty() == true } ?: "write your bio...")
-                        usernameDisplay.text = it.username ?: ""
+                        usernameDisplay.text = it.name ?: ""
 
                         if (it.profileImage.isNotEmpty()) {
                             val decodedImage = Base64.decode(it.profileImage, Base64.DEFAULT)
