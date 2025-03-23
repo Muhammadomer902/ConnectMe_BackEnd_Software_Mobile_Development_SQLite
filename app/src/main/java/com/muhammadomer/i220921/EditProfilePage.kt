@@ -1,6 +1,5 @@
 package com.muhammadomer.i220921
 
-import android.app.Activity
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -9,27 +8,40 @@ import android.os.Bundle
 import android.provider.MediaStore
 import android.util.Base64
 import android.widget.*
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
+import de.hdodenhof.circleimageview.CircleImageView // Import CircleImageView
 import java.io.ByteArrayOutputStream
 
 class EditProfilePage : AppCompatActivity() {
 
-    private lateinit var profileImage: ImageView
+    private lateinit var profileImage: CircleImageView // Changed to CircleImageView
     private lateinit var name: EditText
     private lateinit var username: EditText
     private lateinit var contact: EditText
     private lateinit var bio: EditText
     private lateinit var updateButton: Button
-    private lateinit var usernameDisplay: TextView // Added for the Username TextView
+    private lateinit var usernameDisplay: TextView
 
     private lateinit var database: DatabaseReference
     private lateinit var auth: FirebaseAuth
     private var userId: String? = null
 
     private var encodedImage: String? = null
-    private val pickImageRequest = 1
+    private val pickImageRequest = 1 // Not used anymore, kept for reference
+
+    private val imagePickerLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == RESULT_OK && result.data != null) {
+            val imageUri: Uri? = result.data?.data
+            imageUri?.let {
+                val bitmap = MediaStore.Images.Media.getBitmap(contentResolver, it)
+                profileImage.setImageBitmap(bitmap)
+                encodeImage(bitmap)
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -38,13 +50,13 @@ class EditProfilePage : AppCompatActivity() {
         auth = FirebaseAuth.getInstance()
         database = FirebaseDatabase.getInstance().getReference("RegisteredUsers")
 
-        profileImage = findViewById(R.id.ProfilePicture)
+        profileImage = findViewById(R.id.ProfilePicture) // Still works, type inferred as CircleImageView
         name = findViewById(R.id.nameEditText)
         username = findViewById(R.id.usernameEditText)
         contact = findViewById(R.id.contactEditText)
         bio = findViewById(R.id.bioEditText)
         updateButton = findViewById(R.id.myBtn)
-        usernameDisplay = findViewById(R.id.Username) // Initialize the TextView
+        usernameDisplay = findViewById(R.id.Username)
 
         userId = intent.getStringExtra("USER_ID") ?: auth.currentUser?.uid
 
@@ -75,7 +87,7 @@ class EditProfilePage : AppCompatActivity() {
                         username.setHint(it.username ?: "")
                         contact.setHint(it.phoneNumber ?: "")
                         bio.setHint(it.bio.takeIf { b -> b?.isNotEmpty() == true } ?: "write your bio...")
-                        usernameDisplay.text = it.username ?: "" // Update the TextView with username
+                        usernameDisplay.text = it.username ?: ""
 
                         if (it.profileImage.isNotEmpty()) {
                             val decodedImage = Base64.decode(it.profileImage, Base64.DEFAULT)
@@ -94,19 +106,7 @@ class EditProfilePage : AppCompatActivity() {
 
     private fun openImagePicker() {
         val intent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
-        startActivityForResult(intent, pickImageRequest)
-    }
-
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == pickImageRequest && resultCode == Activity.RESULT_OK && data != null) {
-            val imageUri: Uri? = data.data
-            imageUri?.let {
-                val bitmap = MediaStore.Images.Media.getBitmap(contentResolver, it)
-                profileImage.setImageBitmap(bitmap)
-                encodeImage(bitmap)
-            }
-        }
+        imagePickerLauncher.launch(intent)
     }
 
     private fun encodeImage(bitmap: Bitmap) {

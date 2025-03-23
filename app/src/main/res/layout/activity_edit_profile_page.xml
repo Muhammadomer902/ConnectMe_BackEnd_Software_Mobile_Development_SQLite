@@ -16,7 +16,6 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
-
         <RelativeLayout
             android:id="@+id/HeaderBar"
             android:layout_marginTop="25dp"
@@ -55,18 +54,19 @@
             android:layout_height="wrap_content">
 
             <RelativeLayout
-                android:id="@id/ProfilePic"
+                android:id="@+id/ProfilePic"
                 android:layout_marginTop="10dp"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
 
-                <ImageView
+                <de.hdodenhof.circleimageview.CircleImageView
                     android:alpha="0.5"
                     android:id="@+id/ProfilePicture"
                     android:layout_centerHorizontal="true"
                     android:src="@drawable/dummyprofilepic"
                     android:layout_width="150dp"
-                    android:layout_height="150dp"/>
+                    android:layout_height="150dp"
+                    android:scaleType="centerCrop" />
 
                 <ImageView
                     android:src="@drawable/cameralogo"
@@ -207,7 +207,7 @@
                         android:id="@+id/bioEditText"
                         android:layout_marginTop="-5dp"
                         android:layout_marginLeft="25dp"
-                        android:hint="Just  an average 14 year old"
+                        android:hint="Just an average 14 year old"
                         android:textColorHint="#CAC4BE"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"/>
