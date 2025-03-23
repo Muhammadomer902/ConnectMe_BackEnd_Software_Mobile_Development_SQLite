@@ -4,12 +4,12 @@ import android.content.Intent
 import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.util.Base64
-import android.widget.Button
-import android.widget.ImageButton
-import android.widget.TextView
+import android.widget.*
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
 import de.hdodenhof.circleimageview.CircleImageView
@@ -17,6 +17,7 @@ import de.hdodenhof.circleimageview.CircleImageView
 class ProfilePage : AppCompatActivity() {
     private lateinit var auth: FirebaseAuth
     private lateinit var database: DatabaseReference
+    private lateinit var postAdapter: ProfilePostAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -27,7 +28,13 @@ class ProfilePage : AppCompatActivity() {
         database = FirebaseDatabase.getInstance().getReference("RegisteredUsers")
         val userId = auth.currentUser?.uid ?: return
 
-        // Load profile picture, bio, name, and counts
+        // Set up RecyclerView with 3 columns
+        val recyclerView = findViewById<RecyclerView>(R.id.postRecyclerView)
+        recyclerView.layoutManager = GridLayoutManager(this, 3)
+        postAdapter = ProfilePostAdapter()
+        recyclerView.adapter = postAdapter
+
+        // Load profile picture, bio, name, counts, and posts
         database.child(userId).addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val user = snapshot.getValue(userCredential::class.java)
@@ -57,6 +64,50 @@ class ProfilePage : AppCompatActivity() {
 
                     // Load following count (0 if empty or null)
                     findViewById<Button>(R.id.Following).text = (it.following?.size ?: 0).toString()
+
+                    // Load and sort posts
+                    val postsRef = FirebaseDatabase.getInstance().getReference("Posts")
+                    val postList = mutableListOf<Post>()
+
+                    // Add 2 dummy posts
+                    val dummyImageBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==" // 1x1 red pixel
+                    postList.add(Post(
+                        postId = "dummy1",
+                        imageUrl = dummyImageBase64,
+                        caption = "Dummy Post 1",
+                        timestamp = System.currentTimeMillis() - 1000 // 1 second ago
+                    ))
+                    postList.add(Post(
+                        postId = "dummy2",
+                        imageUrl = dummyImageBase64,
+                        caption = "Dummy Post 2",
+                        timestamp = System.currentTimeMillis() - 2000 // 2 seconds ago
+                    ))
+
+                    // Fetch real posts from Firebase
+                    it.posts?.forEach { postId ->
+                        postsRef.child(postId).addListenerForSingleValueEvent(object : ValueEventListener {
+                            override fun onDataChange(postSnapshot: DataSnapshot) {
+                                val post = postSnapshot.getValue(Post::class.java)
+                                post?.let { p ->
+                                    postList.add(p)
+                                    // Sort by timestamp descending (latest first)
+                                    postList.sortByDescending { it.timestamp }
+                                    postAdapter.submitPosts(postList)
+                                }
+                            }
+
+                            override fun onCancelled(error: DatabaseError) {
+                                Toast.makeText(this@ProfilePage, "Failed to load post: ${error.message}", Toast.LENGTH_SHORT).show()
+                            }
+                        })
+                    }
+
+                    // If no real posts, submit dummy posts immediately
+                    if (it.posts.isNullOrEmpty()) {
+                        postList.sortByDescending { it.timestamp }
+                        postAdapter.submitPosts(postList)
+                    }
                 }
             }
 
@@ -65,6 +116,7 @@ class ProfilePage : AppCompatActivity() {
             }
         })
 
+        // Rest of the button listeners remain unchanged...
         var editProfile = findViewById<Button>(R.id.EditProfile)
         editProfile.setOnClickListener {
             val intent = Intent(this, EditProfilePage::class.java)
