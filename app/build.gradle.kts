@@ -50,4 +50,14 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+
+    // Add CameraX dependencies
+    implementation(files("libs/camera-core-1.4.1.aar"))
+    implementation(files("libs/camera-camera2-1.4.1.aar"))
+    implementation(files("libs/camera-lifecycle-1.4.1.aar"))
+    implementation(files("libs/camera-view-1.4.1.aar"))
+
+    // Add ExifInterface dependency to fix the crash
+    implementation (files("libs/exifinterface-1.3.7.aar"))
+
 }
