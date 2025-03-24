@@ -69,7 +69,7 @@ class ProfilePage : AppCompatActivity() {
                     val postsRef = FirebaseDatabase.getInstance().getReference("Posts")
                     val postList = mutableListOf<Post>()
 
-                    // Add 2 dummy posts
+                    // Add 7 dummy posts
                     val dummyImageBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==" // 1x1 red pixel
                     postList.add(Post(
                         postId = "dummy1",
@@ -82,6 +82,36 @@ class ProfilePage : AppCompatActivity() {
                         imageUrl = dummyImageBase64,
                         caption = "Dummy Post 2",
                         timestamp = System.currentTimeMillis() - 2000 // 2 seconds ago
+                    ))
+                    postList.add(Post(
+                        postId = "dummy3",
+                        imageUrl = dummyImageBase64,
+                        caption = "Dummy Post 3",
+                        timestamp = System.currentTimeMillis() - 3000 // 3 seconds ago
+                    ))
+                    postList.add(Post(
+                        postId = "dummy4",
+                        imageUrl = dummyImageBase64,
+                        caption = "Dummy Post 4",
+                        timestamp = System.currentTimeMillis() - 4000 // 4 seconds ago
+                    ))
+                    postList.add(Post(
+                        postId = "dummy5",
+                        imageUrl = dummyImageBase64,
+                        caption = "Dummy Post 5",
+                        timestamp = System.currentTimeMillis() - 5000 // 5 seconds ago
+                    ))
+                    postList.add(Post(
+                        postId = "dummy6",
+                        imageUrl = dummyImageBase64,
+                        caption = "Dummy Post 6",
+                        timestamp = System.currentTimeMillis() - 6000 // 6 seconds ago
+                    ))
+                    postList.add(Post(
+                        postId = "dummy7",
+                        imageUrl = dummyImageBase64,
+                        caption = "Dummy Post 7",
+                        timestamp = System.currentTimeMillis() - 7000 // 7 seconds ago
                     ))
 
                     // Fetch real posts from Firebase
@@ -136,6 +166,7 @@ class ProfilePage : AppCompatActivity() {
         }
 
         var newPost = findViewById<ImageButton>(R.id.NewPost)
+        newPost as ImageButton
         newPost.setOnClickListener {
             val intent = Intent(this, NewPostPage::class.java)
             startActivity(intent)
