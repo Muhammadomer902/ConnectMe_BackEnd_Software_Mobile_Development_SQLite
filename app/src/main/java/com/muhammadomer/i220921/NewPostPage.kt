@@ -315,14 +315,6 @@ class NewPostPage : AppCompatActivity() {
         cameraExecutor.shutdown()
         selectedBitmap?.recycle()
         selectedBitmap = null
-
-        // Clean up temporary files
-        imagePaths.forEach { path ->
-            val file = File(path)
-            if (file.exists()) {
-                file.delete()
-            }
-        }
-        imagePaths.clear()
+        // Removed file deletion logic; it will be handled in FinalizePostPage
     }
 }
