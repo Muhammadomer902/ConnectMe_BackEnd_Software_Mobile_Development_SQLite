@@ -41,9 +41,13 @@ class ProfilePage : AppCompatActivity() {
                 user?.let {
                     // Load profile picture into CircleImageView
                     if (it.profileImage?.isNotEmpty() == true) {
-                        val decodedImage = Base64.decode(it.profileImage, Base64.DEFAULT)
-                        val bitmap = BitmapFactory.decodeByteArray(decodedImage, 0, decodedImage.size)
-                        findViewById<CircleImageView>(R.id.ProfilePic).setImageBitmap(bitmap)
+                        try {
+                            val decodedImage = Base64.decode(it.profileImage, Base64.DEFAULT)
+                            val bitmap = BitmapFactory.decodeByteArray(decodedImage, 0, decodedImage.size)
+                            findViewById<CircleImageView>(R.id.ProfilePic).setImageBitmap(bitmap)
+                        } catch (e: Exception) {
+                            Toast.makeText(this@ProfilePage, "Failed to load profile picture", Toast.LENGTH_SHORT).show()
+                        }
                     }
 
                     // Load bio if it exists
@@ -69,49 +73,49 @@ class ProfilePage : AppCompatActivity() {
                     val postsRef = FirebaseDatabase.getInstance().getReference("Posts")
                     val postList = mutableListOf<Post>()
 
-                    // Add 7 dummy posts
+                    // Add 7 dummy posts with imageUrls (list of Base64 strings)
                     val dummyImageBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==" // 1x1 red pixel
                     postList.add(Post(
                         postId = "dummy1",
-                        imageUrl = dummyImageBase64,
+                        imageUrls = listOf(dummyImageBase64),
                         caption = "Dummy Post 1",
-                        timestamp = System.currentTimeMillis() - 1000 // 1 second ago
+                        timestamp = System.currentTimeMillis() - 1000
                     ))
                     postList.add(Post(
                         postId = "dummy2",
-                        imageUrl = dummyImageBase64,
+                        imageUrls = listOf(dummyImageBase64),
                         caption = "Dummy Post 2",
-                        timestamp = System.currentTimeMillis() - 2000 // 2 seconds ago
+                        timestamp = System.currentTimeMillis() - 2000
                     ))
                     postList.add(Post(
                         postId = "dummy3",
-                        imageUrl = dummyImageBase64,
+                        imageUrls = listOf(dummyImageBase64),
                         caption = "Dummy Post 3",
-                        timestamp = System.currentTimeMillis() - 3000 // 3 seconds ago
+                        timestamp = System.currentTimeMillis() - 3000
                     ))
                     postList.add(Post(
                         postId = "dummy4",
-                        imageUrl = dummyImageBase64,
+                        imageUrls = listOf(dummyImageBase64),
                         caption = "Dummy Post 4",
-                        timestamp = System.currentTimeMillis() - 4000 // 4 seconds ago
+                        timestamp = System.currentTimeMillis() - 4000
                     ))
                     postList.add(Post(
                         postId = "dummy5",
-                        imageUrl = dummyImageBase64,
+                        imageUrls = listOf(dummyImageBase64),
                         caption = "Dummy Post 5",
-                        timestamp = System.currentTimeMillis() - 5000 // 5 seconds ago
+                        timestamp = System.currentTimeMillis() - 5000
                     ))
                     postList.add(Post(
                         postId = "dummy6",
-                        imageUrl = dummyImageBase64,
+                        imageUrls = listOf(dummyImageBase64),
                         caption = "Dummy Post 6",
-                        timestamp = System.currentTimeMillis() - 6000 // 6 seconds ago
+                        timestamp = System.currentTimeMillis() - 6000
                     ))
                     postList.add(Post(
                         postId = "dummy7",
-                        imageUrl = dummyImageBase64,
+                        imageUrls = listOf(dummyImageBase64),
                         caption = "Dummy Post 7",
-                        timestamp = System.currentTimeMillis() - 7000 // 7 seconds ago
+                        timestamp = System.currentTimeMillis() - 7000
                     ))
 
                     // Fetch real posts from Firebase
