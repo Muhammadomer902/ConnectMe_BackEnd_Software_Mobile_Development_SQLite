@@ -35,6 +35,31 @@ class HomePage : AppCompatActivity() {
         postAdapter = HomePostAdapter()
         recyclerView.adapter = postAdapter
 
+        // Commenting out only the code that adds the dummy following value
+        /*
+        // Add dummy following value for testing
+        val dummyUserId = "wtsBqMdoF9hPnhHul52yoAFvmZY2"
+        database.child(userId).child("following").addListenerForSingleValueEvent(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val followingList = snapshot.getValue(object : GenericTypeIndicator<MutableList<String>>() {}) ?: mutableListOf()
+                if (!followingList.contains(dummyUserId)) {
+                    followingList.add(dummyUserId)
+                    database.child(userId).child("following").setValue(followingList)
+                        .addOnSuccessListener {
+                            Toast.makeText(this@HomePage, "Added dummy user to following list for testing", Toast.LENGTH_SHORT).show()
+                        }
+                        .addOnFailureListener { error ->
+                            Toast.makeText(this@HomePage, "Failed to add dummy user: ${error.message}", Toast.LENGTH_SHORT).show()
+                        }
+                }
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                Toast.makeText(this@HomePage, "Failed to fetch following list: ${error.message}", Toast.LENGTH_SHORT).show()
+            }
+        })
+        */
+
         // Fetch current user's data to get their following list
         database.child(userId).addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
