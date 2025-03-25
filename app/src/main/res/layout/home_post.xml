@@ -133,4 +133,65 @@
         android:layout_marginTop="5dp"
         android:background="#D8D8D8"/>
 
+    <!-- Comment Dropdown -->
+    <LinearLayout
+        android:id="@+id/CommentDropdown"
+        android:layout_below="@id/Divider_3"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="gone"
+        android:padding="10dp">
+
+        <!-- Add Comment Section -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingBottom="10dp">
+
+            <EditText
+                android:id="@+id/CommentInput"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:hint="Add a comment..."
+                android:textSize="14sp"
+                android:padding="10dp"
+                android:background="@android:drawable/edit_text" />
+
+            <Button
+                android:id="@+id/SubmitCommentButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Post"
+                android:textAllCaps="false"
+                android:textSize="14sp"
+                android:padding="10dp"
+                android:layout_marginLeft="10dp"
+                android:background="@drawable/rectangle_button_green"
+                android:textColor="@android:color/white" />
+
+        </LinearLayout>
+
+        <!-- Comments List -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/CommentsRecyclerView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:nestedScrollingEnabled="true"
+            android:overScrollMode="never"
+            android:layout_marginTop="10dp" />
+
+    </LinearLayout>
+
+    <View
+        android:id="@+id/Divider_4"
+        android:layout_width="match_parent"
+        android:layout_height="3dp"
+        android:layout_below="@id/CommentDropdown"
+        android:layout_marginTop="5dp"
+        android:background="#D8D8D8"
+        android:visibility="gone"/>
+
 </RelativeLayout>

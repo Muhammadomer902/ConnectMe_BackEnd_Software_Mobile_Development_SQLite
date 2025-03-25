@@ -9,8 +9,18 @@ data class Post(
     val caption: String? = null,             // Caption or description of the post
     val timestamp: Long? = null,             // When the post was created
     val likes: MutableList<String>? = null,  // List of user IDs who liked the post
-    val comments: MutableMap<String, String>? = null // Map of userId to their comment
+    val comments: MutableList<Comment>? = null // List of comments
 ) {
     // Default constructor for Firebase deserialization
     constructor() : this(null, null, null, null, null, null)
+}
+
+@IgnoreExtraProperties
+data class Comment(
+    val userId: String? = null,              // User ID of the commenter
+    val commentText: String? = null,         // The comment text
+    val timestamp: Long? = null              // When the comment was added
+) {
+    // Default constructor for Firebase deserialization
+    constructor() : this(null, null, null)
 }

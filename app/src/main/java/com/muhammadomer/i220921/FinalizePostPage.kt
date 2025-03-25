@@ -90,7 +90,7 @@ class FinalizePostPage : AppCompatActivity() {
                 caption = if (caption.isEmpty()) "" else caption,
                 timestamp = timestamp,
                 likes = mutableListOf(), // Empty list for likes
-                comments = mutableMapOf() // Empty map for comments
+                comments = mutableListOf() // Empty map for comments
             )
 
             // Save the post to Firebase under "Posts"
