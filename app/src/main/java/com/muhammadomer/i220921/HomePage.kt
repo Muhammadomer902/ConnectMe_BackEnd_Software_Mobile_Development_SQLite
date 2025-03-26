@@ -212,49 +212,110 @@ class HomePage : AppCompatActivity() {
                                 fetchedUser?.let { u ->
                                     val storyIds = u.stories ?: emptyList()
                                     val userStories = mutableListOf<StoryInfo>()
-                                    storyIds.forEach { storyId ->
-                                        storiesRef.child(storyId).addListenerForSingleValueEvent(object : ValueEventListener {
-                                            override fun onDataChange(storySnapshot: DataSnapshot) {
-                                                val story = storySnapshot.getValue(StoryInfo::class.java)
-                                                story?.let { s ->
-                                                    // Check if the story is older than 24 hours
-                                                    val currentTime = System.currentTimeMillis()
-                                                    val storyAge = currentTime - (s.timestamp ?: 0)
-                                                    val twentyFourHours = TimeUnit.HOURS.toMillis(24)
-                                                    // Test story for 5 minutes
-                                                    //val twentyFourHours = TimeUnit.MINUTES.toMillis(5)
-                                                    if (storyAge > twentyFourHours) {
-                                                        // Remove the story from Stories node
-                                                        storiesRef.child(storyId).removeValue()
-                                                        // Remove the story from user's stories list
-                                                        val updatedStories = u.stories.toMutableList().apply { remove(storyId) }
-                                                        database.child(uid).child("stories").setValue(updatedStories)
-                                                    } else {
-                                                        userStories.add(s)
-                                                    }
-                                                }
-                                                // After processing all stories for this user, update the map
-                                                if (storyId == storyIds.lastOrNull()) {
-                                                    if (userStories.isNotEmpty()) {
-                                                        userStoriesMap[uid] = Pair(u, userStories)
-                                                    }
-                                                    // If this is the last user, display the stories
-                                                    if (uid == userIdsToFetch.last()) {
-                                                        displayStories(userStoriesMap)
-                                                    }
-                                                }
-                                            }
+                                    val expiredStoryIds = mutableListOf<String>() // Track expired story IDs
+                                    var storiesProcessed = 0 // Counter to track processed stories
 
-                                            override fun onCancelled(error: DatabaseError) {
-                                                Toast.makeText(this@HomePage, "Failed to load story: ${error.message}", Toast.LENGTH_SHORT).show()
-                                            }
-                                        })
+                                    if (storyIds.isEmpty()) {
+                                        // If no stories, consider processing complete for this user
+                                        storiesProcessed = 1 // Trigger the last story check
+                                    } else {
+                                        storyIds.forEach { storyId ->
+                                            storiesRef.child(storyId).addListenerForSingleValueEvent(object : ValueEventListener {
+                                                override fun onDataChange(storySnapshot: DataSnapshot) {
+                                                    val story = storySnapshot.getValue(StoryInfo::class.java)
+                                                    story?.let { s ->
+                                                        // Check if the story is older than 24 hours
+                                                        val currentTime = System.currentTimeMillis()
+                                                        val storyAge = currentTime - (s.timestamp ?: 0)
+                                                        val twentyFourHours = TimeUnit.HOURS.toMillis(24)
+                                                        // For testing
+                                                        // val twentyFourHours = TimeUnit.MINUTES.toMillis(5) // 5 minutes for testing
+                                                        if (storyAge > twentyFourHours) {
+                                                            expiredStoryIds.add(storyId) // Add to expired list
+                                                        } else {
+                                                            userStories.add(s) // Add to display list
+                                                        }
+                                                    } ?: run {
+                                                        // If story doesn't exist in Stories node, treat it as expired
+                                                        expiredStoryIds.add(storyId)
+                                                    }
+
+                                                    storiesProcessed++ // Increment counter
+
+                                                    // Check if all stories for this user have been processed
+                                                    if (storiesProcessed == storyIds.size) {
+                                                        // Remove all expired stories from Stories node
+                                                        expiredStoryIds.forEach { expiredStoryId ->
+                                                            storiesRef.child(expiredStoryId).removeValue()
+                                                        }
+
+                                                        // Remove all expired story IDs from user's stories list
+                                                        if (expiredStoryIds.isNotEmpty()) {
+                                                            val updatedStories = u.stories?.toMutableList() ?: mutableListOf()
+                                                            updatedStories.removeAll(expiredStoryIds)
+                                                            database.child(uid).child("stories").setValue(updatedStories)
+                                                        }
+
+                                                        // Update userStoriesMap with non-expired stories
+                                                        if (userStories.isNotEmpty()) {
+                                                            userStoriesMap[uid] = Pair(u, userStories)
+                                                        }
+
+                                                        // If this is the last user, display the stories
+                                                        if (uid == userIdsToFetch.last()) {
+                                                            displayStories(userStoriesMap)
+                                                        }
+                                                    }
+                                                }
+
+                                                override fun onCancelled(error: DatabaseError) {
+                                                    Toast.makeText(this@HomePage, "Failed to load story: ${error.message}", Toast.LENGTH_SHORT).show()
+                                                    storiesProcessed++ // Increment counter even on failure
+
+                                                    // Check if all stories for this user have been processed
+                                                    if (storiesProcessed == storyIds.size) {
+                                                        // Remove all expired stories from Stories node
+                                                        expiredStoryIds.forEach { expiredStoryId ->
+                                                            storiesRef.child(expiredStoryId).removeValue()
+                                                        }
+
+                                                        // Remove all expired story IDs from user's stories list
+                                                        if (expiredStoryIds.isNotEmpty()) {
+                                                            val updatedStories = u.stories?.toMutableList() ?: mutableListOf()
+                                                            updatedStories.removeAll(expiredStoryIds)
+                                                            database.child(uid).child("stories").setValue(updatedStories)
+                                                        }
+
+                                                        // Update userStoriesMap with non-expired stories
+                                                        if (userStories.isNotEmpty()) {
+                                                            userStoriesMap[uid] = Pair(u, userStories)
+                                                        }
+
+                                                        // If this is the last user, display the stories
+                                                        if (uid == userIdsToFetch.last()) {
+                                                            displayStories(userStoriesMap)
+                                                        }
+                                                    }
+                                                }
+                                            })
+                                        }
+                                    }
+
+                                    // Handle case where user has no stories
+                                    if (storyIds.isEmpty()) {
+                                        if (uid == userIdsToFetch.last()) {
+                                            displayStories(userStoriesMap)
+                                        }
                                     }
                                 }
                             }
 
                             override fun onCancelled(error: DatabaseError) {
                                 Toast.makeText(this@HomePage, "Failed to load user data: ${error.message}", Toast.LENGTH_SHORT).show()
+                                // If this is the last user, display the stories even on failure
+                                if (uid == userIdsToFetch.last()) {
+                                    displayStories(userStoriesMap)
+                                }
                             }
                         })
                     }
