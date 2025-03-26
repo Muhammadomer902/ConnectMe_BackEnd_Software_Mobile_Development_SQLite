@@ -48,12 +48,13 @@
         <HorizontalScrollView
             android:id="@+id/StoryRow"
             android:layout_marginTop="10dp"
-            android:layout_below="@id/MyCommunityText"
+            android:layout_below="@id/WelcomeText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:scrollbars="none">
 
             <LinearLayout
+                android:id="@+id/story_container"
                 android:orientation="horizontal"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content">
@@ -62,15 +63,14 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content">
 
-                    <ImageButton
-                        android:src="@drawable/profilepicture"
+                    <de.hdodenhof.circleimageview.CircleImageView
                         android:id="@+id/NewStory"
-                        android:background="@null"
-                        android:scaleType="fitCenter"
-                        android:layout_marginTop="2dp"
-                        android:layout_marginRight="5dp"
                         android:layout_width="75dp"
-                        android:layout_height="110dp"/>
+                        android:layout_height="75dp"
+                        android:layout_marginRight="5dp"
+                        android:scaleType="centerCrop"
+                        android:src="@drawable/dummyprofilepic"
+                        android:background="@drawable/story_circle" />
 
                     <ImageButton
                         android:src="@drawable/plus_sign"
@@ -81,50 +81,12 @@
                         android:layout_width="25dp"
                         android:layout_height="25dp"
                         android:layout_alignBottom="@id/NewStory"
-                        android:layout_alignEnd="@id/NewStory"
-                        android:layout_marginBottom="18dp"/>
+                        android:layout_alignEnd="@id/NewStory"/>
 
                 </RelativeLayout>
 
-                <ImageButton
-                    android:src="@drawable/profilepicture_1"
-                    android:background="@drawable/story_circle"
-                    android:scaleType="fitCenter"
-                    android:layout_marginRight="5dp"
-                    android:layout_marginTop="20dp"
-                    android:padding="4dp"
-                    android:layout_width="75dp"
-                    android:layout_height="75dp"/>
+                <!-- Dynamic story thumbnails will be added here programmatically -->
 
-                <ImageButton
-                    android:src="@drawable/profilepicture_2"
-                    android:background="@drawable/story_circle"
-                    android:scaleType="fitCenter"
-                    android:layout_marginRight="5dp"
-                    android:layout_marginTop="20dp"
-                    android:padding="4dp"
-                    android:layout_width="75dp"
-                    android:layout_height="75dp"/>
-
-                <ImageButton
-                    android:src="@drawable/profilepicture_3"
-                    android:background="@drawable/story_circle"
-                    android:scaleType="fitCenter"
-                    android:layout_marginRight="5dp"
-                    android:layout_marginTop="20dp"
-                    android:padding="4dp"
-                    android:layout_width="75dp"
-                    android:layout_height="75dp"/>
-
-                <ImageButton
-                    android:src="@drawable/profilepicture_3"
-                    android:background="@drawable/story_circle"
-                    android:scaleType="fitCenter"
-                    android:layout_marginRight="5dp"
-                    android:layout_marginTop="20dp"
-                    android:padding="4dp"
-                    android:layout_width="75dp"
-                    android:layout_height="75dp"/>
             </LinearLayout>
 
         </HorizontalScrollView>
@@ -136,7 +98,7 @@
         android:layout_width="match_parent"
         android:layout_height="3dp"
         android:layout_below="@id/CommunityText"
-        android:layout_marginTop="-10dp"
+        android:layout_marginTop="10dp"
         android:background="#D8D8D8"/>
 
     <androidx.recyclerview.widget.RecyclerView

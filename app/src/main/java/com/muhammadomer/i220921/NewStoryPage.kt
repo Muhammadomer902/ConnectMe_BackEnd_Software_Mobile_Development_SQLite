@@ -164,7 +164,7 @@ class NewStoryPage : AppCompatActivity() {
                 // Convert the bitmap to a Base64 string
                 val bitmapString = bitmapToBase64(selectedBitmap!!)
 
-                // Create a new story (updated to use StoryInfo)
+                // Create a new story
                 val storyId = FirebaseDatabase.getInstance().getReference("Stories").push().key ?: return@setOnClickListener
                 val story = StoryInfo(
                     storyId = storyId,
@@ -175,24 +175,17 @@ class NewStoryPage : AppCompatActivity() {
                 // Save the story to Firebase under Stories node
                 FirebaseDatabase.getInstance().getReference("Stories").child(storyId).setValue(story)
                     .addOnSuccessListener {
-                        // Update the user's stories list (overwrite the previous story if exists)
+                        // Update the user's stories list (append the new story)
                         database.child(userId).addListenerForSingleValueEvent(object : ValueEventListener {
                             override fun onDataChange(snapshot: DataSnapshot) {
                                 val user = snapshot.getValue(userCredential::class.java)
                                 user?.let {
-                                    val currentStories = user.stories.toMutableList()
-                                    // Remove the previous story if it exists (to enforce only 1 image per story)
-                                    if (currentStories.isNotEmpty()) {
-                                        // Optionally, delete the previous story from Stories node
-                                        currentStories.forEach { oldStoryId ->
-                                            FirebaseDatabase.getInstance().getReference("Stories").child(oldStoryId).removeValue()
-                                        }
-                                    }
-                                    // Add the new story ID
-                                    val updatedStories = mutableListOf<String>().apply {
-                                        add(storyId)
-                                    }
-                                    database.child(userId).child("stories").setValue(updatedStories)
+                                    // Get the current stories list, or initialize an empty list if null
+                                    val currentStories = user.stories?.toMutableList() ?: mutableListOf()
+                                    // Append the new story ID
+                                    currentStories.add(storyId)
+                                    // Update the stories list in Firebase
+                                    database.child(userId).child("stories").setValue(currentStories)
                                         .addOnSuccessListener {
                                             Toast.makeText(this@NewStoryPage, "Story posted successfully", Toast.LENGTH_SHORT).show()
                                             // Navigate to HomePage
