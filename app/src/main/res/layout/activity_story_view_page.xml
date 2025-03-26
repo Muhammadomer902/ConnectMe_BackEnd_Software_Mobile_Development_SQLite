@@ -11,4 +11,17 @@
         android:scaleType="centerCrop"
         android:contentDescription="Story image" />
 
+    <ProgressBar
+        android:id="@+id/storyProgressBar"
+        style="@android:style/Widget.ProgressBar.Horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="4dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        android:max="100"
+        android:progress="0"
+        android:progressDrawable="@drawable/progressbar_red"
+        android:background="@android:color/transparent" />
+
 </RelativeLayout>
