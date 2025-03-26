@@ -116,7 +116,10 @@ class RegisterationPage : AppCompatActivity() {
                             profileImage = "",
                             posts = emptyList(),
                             followers = emptyList(),
-                            following = emptyList()
+                            following = emptyList(),
+                            stories = emptyList(),           // Initialize stories
+                            pendingFollowRequests = emptyList(), // Initialize pendingFollowRequests
+                            recentSearches = emptyList()     // Initialize recentSearches
                         )
 
                         database.child(userId).setValue(registerUser)

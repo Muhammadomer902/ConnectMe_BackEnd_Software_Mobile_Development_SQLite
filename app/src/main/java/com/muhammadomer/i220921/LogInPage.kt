@@ -42,6 +42,7 @@ class LogInPage : AppCompatActivity() {
         }
 
         // Handle login button click
+
         loginBtn.setOnClickListener {
             val username = usernameInput.text.toString().trim()
             val password = passwordInput.text.toString().trim()
