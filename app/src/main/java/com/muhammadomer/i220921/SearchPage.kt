@@ -260,27 +260,56 @@ class SearchPage : AppCompatActivity() {
 
     private fun sendFollowRequest(user: userCredential) {
         val currentUserId = auth.currentUser?.uid ?: return
-        val targetUserId = allUsers.find { it.username == user.username }?.let { user ->
-            database.child(user.username).key // Assuming username is the key in RegisteredUsers
-        } ?: return
+        val targetUsername = user.username
 
-        // Add current user's UID to the target user's pendingFollowRequests
-        database.child(targetUserId).child("pendingFollowRequests").get().addOnSuccessListener { snapshot ->
-            val pendingRequests = snapshot.getValue(object : GenericTypeIndicator<List<String>>() {})?.toMutableList() ?: mutableListOf()
-            if (!pendingRequests.contains(currentUserId)) {
-                pendingRequests.add(currentUserId)
-                database.child(targetUserId).child("pendingFollowRequests").setValue(pendingRequests)
-                    .addOnSuccessListener {
-                        Toast.makeText(this, "Follow request sent to ${user.username}", Toast.LENGTH_SHORT).show()
-                        // Update UI to reflect the change
-                        searchedUsersAdapter.notifyDataSetChanged()
-                    }
-                    .addOnFailureListener {
-                        Toast.makeText(this, "Failed to send follow request", Toast.LENGTH_SHORT).show()
-                    }
-            }
-        }.addOnFailureListener {
-            Toast.makeText(this, "Failed to fetch pending requests", Toast.LENGTH_SHORT).show()
+        // Check if the user is trying to follow themselves by comparing usernames first
+        if (currentUser?.username == targetUsername) {
+            Toast.makeText(this@SearchPage, "You can't follow yourself", Toast.LENGTH_SHORT).show()
+            return
         }
+
+        // Search for the user in RegisteredUsers by username
+        database.orderByChild("username").equalTo(targetUsername).addListenerForSingleValueEvent(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                if (snapshot.exists()) {
+                    // There should be only one user with this username (usernames are typically unique)
+                    for (userSnapshot in snapshot.children) {
+                        val targetUserId = userSnapshot.key ?: return@onDataChange
+                        // Double-check using UIDs to ensure the user isn't following themselves
+                        if (currentUserId == targetUserId) {
+                            Toast.makeText(this@SearchPage, "You can't follow yourself", Toast.LENGTH_SHORT).show()
+                            return@onDataChange
+                        }
+                        // Get the current pendingFollowRequests list
+                        database.child(targetUserId).child("pendingFollowRequests").get().addOnSuccessListener { requestSnapshot ->
+                            val pendingRequests = requestSnapshot.getValue(object : GenericTypeIndicator<List<String>>() {})?.toMutableList() ?: mutableListOf()
+                            if (!pendingRequests.contains(currentUserId)) {
+                                pendingRequests.add(currentUserId)
+                                // Update the pendingFollowRequests list in Firebase
+                                database.child(targetUserId).child("pendingFollowRequests").setValue(pendingRequests)
+                                    .addOnSuccessListener {
+                                        Toast.makeText(this@SearchPage, "Follow request sent to $targetUsername", Toast.LENGTH_SHORT).show()
+                                        // Update UI to reflect the change
+                                        searchedUsersAdapter.notifyDataSetChanged()
+                                    }
+                                    .addOnFailureListener {
+                                        Toast.makeText(this@SearchPage, "Failed to send follow request", Toast.LENGTH_SHORT).show()
+                                    }
+                            } else {
+                                Toast.makeText(this@SearchPage, "Follow request already sent to $targetUsername", Toast.LENGTH_SHORT).show()
+                            }
+                        }.addOnFailureListener {
+                            Toast.makeText(this@SearchPage, "Failed to fetch pending requests", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                } else {
+                    Toast.makeText(this@SearchPage, "User $targetUsername not found", Toast.LENGTH_SHORT).show()
+                }
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                Toast.makeText(this@SearchPage, "Failed to search for user: ${error.message}", Toast.LENGTH_SHORT).show()
+            }
+        })
     }
 }
