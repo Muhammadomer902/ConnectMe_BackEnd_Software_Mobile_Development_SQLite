@@ -1,14 +1,13 @@
 {
   "project_info": {
-    "project_number": "215539995084",
-    "firebase_url": "https://i220921-default-rtdb.firebaseio.com",
-    "project_id": "i220921",
-    "storage_bucket": "i220921.firebasestorage.app"
+    "project_number": "784908781970",
+    "project_id": "i220921t2",
+    "storage_bucket": "i220921t2.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:215539995084:android:6e0226a9a5faced24d0d69",
+        "mobilesdk_app_id": "1:784908781970:android:e1df7fed386c8d0d7f194b",
         "android_client_info": {
           "package_name": "com.muhammadomer.i220921"
         }
@@ -16,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyDgaVkBrNyu5th9A7bMlAO5rHklTRwqn8g"
+          "current_key": "AIzaSyCRF9_HrtOQNakbpUt7EDTzB13yVDLM0rs"
         }
       ],
       "services": {
