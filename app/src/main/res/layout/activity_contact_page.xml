@@ -9,354 +9,380 @@
     android:layout_height="match_parent"
     tools:context=".ContactPage">
 
-    <RelativeLayout
-        android:layout_marginLeft="20dp"
-        android:layout_marginRight="20dp"
-        android:background="@color/white"
+    <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="match_parent"
+        android:layout_above="@+id/bottomNavigation">
 
         <RelativeLayout
-            android:id="@+id/HeaderBar"
-            android:layout_marginTop="25dp"
+            android:layout_marginLeft="20dp"
+            android:layout_marginRight="20dp"
+            android:background="@color/white"
             android:layout_width="match_parent"
             android:layout_height="wrap_content">
 
-            <Button
-                android:id="@+id/Back"
-                android:layout_centerVertical="true"
-                android:background="@drawable/backlogo"
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:layout_alignParentStart="true"
-                android:layout_marginRight="10dp"/>
+            <RelativeLayout
+                android:id="@+id/HeaderBar"
+                android:layout_marginTop="25dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <Button
+                    android:id="@+id/Back"
+                    android:layout_centerVertical="true"
+                    android:background="@drawable/backlogo"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_alignParentStart="true"
+                    android:layout_marginRight="10dp"/>
+
+                <TextView
+                    android:id="@+id/Username"
+                    android:layout_centerVertical="true"
+                    android:text="OliviaD"
+                    android:textSize="20sp"
+                    android:textColor="#303032"
+                    android:layout_toRightOf="@id/Back"
+                    android:textStyle="bold"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"/>
+
+                <ImageView
+                    android:id="@+id/CreateGroup"
+                    android:layout_centerVertical="true"
+                    android:layout_alignParentRight="true"
+                    android:src="@drawable/creategroupbutton"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"/>
+
+            </RelativeLayout>
 
             <TextView
-                android:id="@+id/Username"
-                android:layout_centerVertical="true"
-                android:text="OliviaD"
-                android:textSize="20sp"
-                android:textColor="#303032"
-                android:layout_toRightOf="@id/Back"
+                android:layout_marginTop="20dp"
+                android:layout_marginLeft="15dp"
+                android:id="@+id/Heading"
+                android:layout_below="@id/HeaderBar"
+                android:text="Contacts"
+                android:textSize="22sp"
                 android:textStyle="bold"
+                android:textColor="#58442F"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"/>
 
-            <ImageView
-                android:id="@+id/CreateGroup"
-                android:layout_centerVertical="true"
-                android:layout_alignParentRight="true"
-                android:src="@drawable/creategroupbutton"
-                android:layout_width="20dp"
-                android:layout_height="20dp"/>
+            <RelativeLayout
+                android:id="@+id/SearchBar"
+                android:layout_below="@id/Heading"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content">
 
-        </RelativeLayout>
+                <EditText
+                    android:id="@+id/Searchbar"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Search for DMs"
+                    android:textColor="#A8A9AB"
+                    android:layout_centerVertical="true"
+                    android:background="@drawable/search_button"
+                    android:paddingStart="15dp"
+                    android:paddingEnd="10dp"
+                    android:layout_marginTop="10dp"/>
 
-        <TextView
-            android:layout_marginTop="20dp"
-            android:layout_marginLeft="15dp"
-            android:id="@+id/Heading"
-            android:layout_below="@id/HeaderBar"
-            android:text="Contacts"
-            android:textSize="22sp"
-            android:textStyle="bold"
-            android:textColor="#58442F"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"/>
+                <Button
+                    android:id="@+id/SearchLogo"
+                    android:background="@drawable/searchlogo"
+                    android:layout_centerVertical="true"
+                    android:layout_width="25dp"
+                    android:layout_height="25dp"
+                    android:layout_alignParentRight="true"
+                    android:layout_marginRight="10dp"/>
 
-        <RelativeLayout
-            android:id="@+id/SearchBar"
-            android:layout_below="@id/Heading"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content">
+            </RelativeLayout>
 
-            <EditText
-                android:id="@+id/Searchbar"
+            <TextView
+                android:layout_marginTop="20dp"
+                android:layout_marginLeft="15dp"
+                android:id="@+id/SubHeading1"
+                android:layout_below="@id/SearchBar"
+                android:text="In Contacts"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="#58442F"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"/>
+
+            <RelativeLayout
+                android:id="@+id/InContact"
+                android:layout_below="@id/SubHeading1"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <RelativeLayout
+                    android:id="@+id/ContactPerson1"
+                    android:layout_marginTop="10dp"
+                    android:layout_marginBottom="10dp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <ImageView
+                        android:id="@+id/ProfilePic1"
+                        android:src="@drawable/chatprofilepicture1"
+                        android:layout_width="50dp"
+                        android:layout_height="50dp"/>
+
+                    <Button
+                        android:id="@+id/ChatUsername"
+                        android:text="Henry School"
+                        android:layout_toRightOf="@id/ProfilePic1"
+                        android:textAllCaps="false"
+                        android:background="@null"
+                        android:textSize="18sp"
+                        android:layout_marginLeft="15dp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"/>
+
+                    <ImageView
+                        android:layout_alignParentRight="true"
+                        android:src="@drawable/messagelogof"
+                        android:layout_marginRight="5dp"
+                        android:layout_centerVertical="true"
+                        android:layout_width="25dp"
+                        android:layout_height="25dp"/>
+
+                </RelativeLayout>
+
+                <RelativeLayout
+                    android:id="@+id/ContactPerson2"
+                    android:layout_below="@id/ContactPerson1"
+                    android:layout_marginTop="10dp"
+                    android:layout_marginBottom="10dp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <ImageView
+                        android:id="@+id/ProfilePic2"
+                        android:src="@drawable/chatprofilepicture2"
+                        android:layout_width="50dp"
+                        android:layout_height="50dp"/>
+
+                    <Button
+                        android:id="@+id/ChatUsername2"
+                        android:text="Emily James"
+                        android:layout_toRightOf="@id/ProfilePic2"
+                        android:textAllCaps="false"
+                        android:background="@null"
+                        android:textSize="18sp"
+                        android:layout_marginLeft="15dp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"/>
+
+                    <ImageView
+                        android:layout_alignParentRight="true"
+                        android:src="@drawable/messagelogof"
+                        android:layout_marginRight="5dp"
+                        android:layout_centerVertical="true"
+                        android:layout_width="25dp"
+                        android:layout_height="25dp"/>
+
+                </RelativeLayout>
+
+                <RelativeLayout
+                    android:id="@+id/ContactPerson3"
+                    android:layout_below="@id/ContactPerson2"
+                    android:layout_marginTop="10dp"
+                    android:layout_marginBottom="10dp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <ImageView
+                        android:id="@+id/ProfilePic3"
+                        android:src="@drawable/chatprofilepicture3"
+                        android:layout_width="50dp"
+                        android:layout_height="50dp"/>
+
+                    <Button
+                        android:id="@+id/ChatUsername3"
+                        android:text="Lily Thomas"
+                        android:layout_toRightOf="@id/ProfilePic3"
+                        android:textAllCaps="false"
+                        android:background="@null"
+                        android:textSize="18sp"
+                        android:layout_marginLeft="15dp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"/>
+
+                    <ImageView
+                        android:layout_alignParentRight="true"
+                        android:src="@drawable/messagelogof"
+                        android:layout_marginRight="5dp"
+                        android:layout_centerVertical="true"
+                        android:layout_width="25dp"
+                        android:layout_height="25dp"/>
+
+                </RelativeLayout>
+
+            </RelativeLayout>
+
+            <TextView
+                android:layout_marginTop="20dp"
+                android:layout_marginLeft="15dp"
+                android:id="@+id/SubHeading2"
+                android:layout_below="@id/InContact"
+                android:text="Invite New Friends"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="#58442F"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"/>
+
+            <RelativeLayout
+                android:id="@+id/NewFriends"
+                android:layout_below="@id/SubHeading2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <RelativeLayout
+                    android:id="@+id/NewPerson1"
+                    android:layout_marginTop="10dp"
+                    android:layout_marginBottom="10dp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <ImageView
+                        android:id="@+id/ProfilePic4"
+                        android:src="@drawable/chatprofilepicture5"
+                        android:layout_width="50dp"
+                        android:layout_height="50dp"/>
+
+                    <Button
+                        android:id="@+id/NewUsername"
+                        android:text="Amy Wesley"
+                        android:layout_toRightOf="@id/ProfilePic4"
+                        android:textAllCaps="false"
+                        android:background="@null"
+                        android:textSize="18sp"
+                        android:layout_marginLeft="15dp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"/>
+
+                    <Button
+                        android:layout_alignParentRight="true"
+                        android:text="Invite"
+                        android:textColor="@color/white"
+                        android:textStyle="bold"
+                        android:background="@drawable/rectangle_button_green"
+                        android:layout_marginRight="5dp"
+                        android:textAllCaps="false"
+                        android:layout_centerVertical="true"
+                        android:layout_width="60dp"
+                        android:layout_height="25dp"/>
+
+                </RelativeLayout>
+
+                <RelativeLayout
+                    android:id="@+id/NewPerson2"
+                    android:layout_below="@id/NewPerson1"
+                    android:layout_marginTop="10dp"
+                    android:layout_marginBottom="10dp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <ImageView
+                        android:id="@+id/ProfilePic5"
+                        android:src="@drawable/chatprofilepicture6"
+                        android:layout_width="50dp"
+                        android:layout_height="50dp"/>
+
+                    <Button
+                        android:id="@+id/NewUsername2"
+                        android:text="Laura Ryan"
+                        android:layout_toRightOf="@id/ProfilePic5"
+                        android:textAllCaps="false"
+                        android:background="@null"
+                        android:textSize="18sp"
+                        android:layout_marginLeft="15dp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"/>
+
+                    <Button
+                        android:layout_alignParentRight="true"
+                        android:text="Invite"
+                        android:textColor="@color/white"
+                        android:textStyle="bold"
+                        android:background="@drawable/rectangle_button_green"
+                        android:layout_marginRight="5dp"
+                        android:textAllCaps="false"
+                        android:layout_centerVertical="true"
+                        android:layout_width="60dp"
+                        android:layout_height="25dp"/>
+                </RelativeLayout>
+
+                <RelativeLayout
+                    android:id="@+id/NewPerson3"
+                    android:layout_below="@id/NewPerson2"
+                    android:layout_marginTop="10dp"
+                    android:layout_marginBottom="10dp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <ImageView
+                        android:id="@+id/ProfilePic6"
+                        android:src="@drawable/chatprofilepicture4"
+                        android:layout_width="50dp"
+                        android:layout_height="50dp"/>
+
+                    <Button
+                        android:id="@+id/NewUsername3"
+                        android:text="Christopher"
+                        android:layout_toRightOf="@id/ProfilePic6"
+                        android:textAllCaps="false"
+                        android:background="@null"
+                        android:textSize="18sp"
+                        android:layout_marginLeft="15dp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"/>
+
+                    <Button
+                        android:layout_alignParentRight="true"
+                        android:text="Invite"
+                        android:textColor="@color/white"
+                        android:textStyle="bold"
+                        android:background="@drawable/rectangle_button_green"
+                        android:layout_marginRight="5dp"
+                        android:textAllCaps="false"
+                        android:layout_centerVertical="true"
+                        android:layout_width="60dp"
+                        android:layout_height="25dp"/>
+
+                </RelativeLayout>
+
+            </RelativeLayout>
+
+            <!-- "Pending Requests" Section with RecyclerView -->
+            <TextView
+                android:layout_marginTop="20dp"
+                android:layout_marginLeft="15dp"
+                android:id="@+id/SubHeading3"
+                android:layout_below="@id/NewFriends"
+                android:text="Pending Requests"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="#58442F"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"/>
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/pendingRequestsRecyclerView"
+                android:layout_below="@id/SubHeading3"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Search for DMs"
-                android:textColor="#A8A9AB"
-                android:layout_centerVertical="true"
-                android:background="@drawable/search_button"
-                android:paddingStart="15dp"
-                android:paddingEnd="10dp"
-                android:layout_marginTop="10dp"/>
-
-            <Button
-                android:id="@+id/SearchLogo"
-                android:background="@drawable/searchlogo"
-                android:layout_centerVertical="true"
-                android:layout_width="25dp"
-                android:layout_height="25dp"
-                android:layout_alignParentRight="true"
-                android:layout_marginRight="10dp"/>
+                android:layout_marginTop="10dp"
+                android:layout_marginBottom="10dp"/>
 
         </RelativeLayout>
-
-        <TextView
-            android:layout_marginTop="20dp"
-            android:layout_marginLeft="15dp"
-            android:id="@+id/SubHeading1"
-            android:layout_below="@id/SearchBar"
-            android:text="In Contacts"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:textColor="#58442F"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"/>
-
-        <RelativeLayout
-            android:id="@+id/InContact"
-            android:layout_below="@id/SubHeading1"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:fillViewport="true">
-
-            <RelativeLayout
-                android:id="@+id/ContactPerson1"
-                android:layout_marginTop="10dp"
-                android:layout_marginBottom="10dp"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
-
-                <ImageView
-                    android:id="@+id/ProfilePic1"
-                    android:src="@drawable/chatprofilepicture1"
-                    android:layout_width="50dp"
-                    android:layout_height="50dp"/>
-
-                <Button
-                    android:id="@+id/ChatUsername"
-                    android:text="Henry School"
-                    android:layout_toRightOf="@id/ProfilePic1"
-                    android:textAllCaps="false"
-                    android:background="@null"
-                    android:textSize="18sp"
-                    android:layout_marginLeft="15dp"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"/>
-
-                <ImageView
-                    android:layout_alignParentRight="true"
-                    android:src="@drawable/messagelogof"
-                    android:layout_marginRight="5dp"
-                    android:layout_centerVertical="true"
-                    android:layout_width="25dp"
-                    android:layout_height="25dp"/>
-
-            </RelativeLayout>
-
-            <RelativeLayout
-                android:id="@+id/ContactPerson2"
-                android:layout_below="@id/ContactPerson1"
-                android:layout_marginTop="10dp"
-                android:layout_marginBottom="10dp"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
-
-                <ImageView
-                    android:id="@+id/ProfilePic2"
-                    android:src="@drawable/chatprofilepicture2"
-                    android:layout_width="50dp"
-                    android:layout_height="50dp"/>
-
-                <Button
-                    android:id="@+id/ChatUsername2"
-                    android:text="Emily James"
-                    android:layout_toRightOf="@id/ProfilePic2"
-                    android:textAllCaps="false"
-                    android:background="@null"
-                    android:textSize="18sp"
-                    android:layout_marginLeft="15dp"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"/>
-
-                <ImageView
-                    android:layout_alignParentRight="true"
-                    android:src="@drawable/messagelogof"
-                    android:layout_marginRight="5dp"
-                    android:layout_centerVertical="true"
-                    android:layout_width="25dp"
-                    android:layout_height="25dp"/>
-
-            </RelativeLayout>
-
-            <RelativeLayout
-                android:id="@+id/ContactPerson3"
-                android:layout_below="@id/ContactPerson2"
-                android:layout_marginTop="10dp"
-                android:layout_marginBottom="10dp"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
-
-                <ImageView
-                    android:id="@+id/ProfilePic3"
-                    android:src="@drawable/chatprofilepicture3"
-                    android:layout_width="50dp"
-                    android:layout_height="50dp"/>
-
-                <Button
-                    android:id="@+id/ChatUsername3"
-                    android:text="Lily Thomas"
-                    android:layout_toRightOf="@id/ProfilePic3"
-                    android:textAllCaps="false"
-                    android:background="@null"
-                    android:textSize="18sp"
-                    android:layout_marginLeft="15dp"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"/>
-
-                <ImageView
-                    android:layout_alignParentRight="true"
-                    android:src="@drawable/messagelogof"
-                    android:layout_marginRight="5dp"
-                    android:layout_centerVertical="true"
-                    android:layout_width="25dp"
-                    android:layout_height="25dp"/>
-
-            </RelativeLayout>
-
-        </RelativeLayout>
-
-        <TextView
-            android:layout_marginTop="20dp"
-            android:layout_marginLeft="15dp"
-            android:id="@+id/SubHeading2"
-            android:layout_below="@id/InContact"
-            android:text="Invite New Friends"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:textColor="#58442F"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"/>
-
-        <RelativeLayout
-            android:id="@+id/NewFriends"
-            android:layout_below="@id/SubHeading2"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:fillViewport="true">
-
-            <RelativeLayout
-                android:id="@+id/NewPerson1"
-                android:layout_marginTop="10dp"
-                android:layout_marginBottom="10dp"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
-
-                <ImageView
-                    android:id="@+id/ProfilePic4"
-                    android:src="@drawable/chatprofilepicture5"
-                    android:layout_width="50dp"
-                    android:layout_height="50dp"/>
-
-                <Button
-                    android:id="@+id/NewUsername"
-                    android:text="Amy Wesley"
-                    android:layout_toRightOf="@id/ProfilePic4"
-                    android:textAllCaps="false"
-                    android:background="@null"
-                    android:textSize="18sp"
-                    android:layout_marginLeft="15dp"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"/>
-
-                <Button
-                    android:layout_alignParentRight="true"
-                    android:text="Invite"
-                    android:textColor="@color/white"
-                    android:textStyle="bold"
-                    android:background="@drawable/rectangle_button_green"
-                    android:layout_marginRight="5dp"
-                    android:textAllCaps="false"
-                    android:layout_centerVertical="true"
-                    android:layout_width="60dp"
-                    android:layout_height="25dp"/>
-
-            </RelativeLayout>
-
-            <RelativeLayout
-                android:id="@+id/NewPerson2"
-                android:layout_below="@id/NewPerson1"
-                android:layout_marginTop="10dp"
-                android:layout_marginBottom="10dp"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
-
-                <ImageView
-                    android:id="@+id/ProfilePic5"
-                    android:src="@drawable/chatprofilepicture6"
-                    android:layout_width="50dp"
-                    android:layout_height="50dp"/>
-
-                <Button
-                    android:id="@+id/NewUsername2"
-                    android:text="Laura Ryan"
-                    android:layout_toRightOf="@id/ProfilePic5"
-                    android:textAllCaps="false"
-                    android:background="@null"
-                    android:textSize="18sp"
-                    android:layout_marginLeft="15dp"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"/>
-
-                <Button
-                    android:layout_alignParentRight="true"
-                    android:text="Invite"
-                    android:textColor="@color/white"
-                    android:textStyle="bold"
-                    android:background="@drawable/rectangle_button_green"
-                    android:layout_marginRight="5dp"
-                    android:textAllCaps="false"
-                    android:layout_centerVertical="true"
-                    android:layout_width="60dp"
-                    android:layout_height="25dp"/>
-            </RelativeLayout>
-
-            <RelativeLayout
-                android:id="@+id/NewPerson3"
-                android:layout_below="@id/NewPerson2"
-                android:layout_marginTop="10dp"
-                android:layout_marginBottom="10dp"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
-
-                <ImageView
-                    android:id="@+id/ProfilePic6"
-                    android:src="@drawable/chatprofilepicture4"
-                    android:layout_width="50dp"
-                    android:layout_height="50dp"/>
-
-                <Button
-                    android:id="@+id/NewUsername3"
-                    android:text="Christopher"
-                    android:layout_toRightOf="@id/ProfilePic6"
-                    android:textAllCaps="false"
-                    android:background="@null"
-                    android:textSize="18sp"
-                    android:layout_marginLeft="15dp"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"/>
-
-                <Button
-                    android:layout_alignParentRight="true"
-                    android:text="Invite"
-                    android:textColor="@color/white"
-                    android:textStyle="bold"
-                    android:background="@drawable/rectangle_button_green"
-                    android:layout_marginRight="5dp"
-                    android:textAllCaps="false"
-                    android:layout_centerVertical="true"
-                    android:layout_width="60dp"
-                    android:layout_height="25dp"/>
-
-            </RelativeLayout>
-
-        </RelativeLayout>
-
-    </RelativeLayout>
+    </ScrollView>
 
     <RelativeLayout
+        android:id="@+id/bottomNavigation"
         android:layout_alignParentBottom="true"
         android:layout_width="wrap_content"
         android:layout_height="70dp">

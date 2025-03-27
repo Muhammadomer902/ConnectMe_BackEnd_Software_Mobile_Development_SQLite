@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="10dp"
+    android:layout_marginBottom="10dp">
+
+    <RelativeLayout
+        android:id="@+id/pendingRequestHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <de.hdodenhof.circleimageview.CircleImageView
+            android:id="@+id/pendingProfilePic"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:src="@drawable/dummyprofilepic"/>
+
+        <TextView
+            android:id="@+id/pendingUsername"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_toEndOf="@id/pendingProfilePic"
+            android:layout_centerVertical="true"
+            android:layout_marginStart="15dp"
+            android:text="Username"
+            android:textSize="18sp"
+            android:textColor="#58442F"/>
+
+    </RelativeLayout>
+
+    <LinearLayout
+        android:layout_below="@id/pendingRequestHeader"
+        android:layout_alignParentEnd="true"
+        android:layout_marginTop="5dp"
+        android:orientation="horizontal"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content">
+
+        <Button
+            android:id="@+id/acceptButton"
+            android:text="Accept"
+            android:textColor="@color/white"
+            android:textStyle="bold"
+            android:background="@drawable/rectangle_button_green"
+            android:layout_marginEnd="5dp"
+            android:textAllCaps="false"
+            android:layout_width="60dp"
+            android:layout_height="25dp"/>
+
+        <Button
+            android:id="@+id/rejectButton"
+            android:text="Reject"
+            android:textColor="@color/white"
+            android:textStyle="bold"
+            android:background="@drawable/rectangle_button_red"
+            android:layout_marginStart="5dp"
+            android:textAllCaps="false"
+            android:layout_width="60dp"
+            android:layout_height="25dp"/>
+
+    </LinearLayout>
+
+</RelativeLayout>
