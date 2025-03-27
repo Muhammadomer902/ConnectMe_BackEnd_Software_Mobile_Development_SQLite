@@ -4,4 +4,5 @@
     <color name="white">#FFFFFFFF</color>
     <color name="red">#FF0000</color>
     <color name="progress_background">#80FFFFFF</color>
+    <color name="brown">#58442F</color>
 </resources>
