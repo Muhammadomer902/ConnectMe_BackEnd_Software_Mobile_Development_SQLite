@@ -11,9 +11,9 @@ import androidx.recyclerview.widget.RecyclerView
 import de.hdodenhof.circleimageview.CircleImageView
 
 class SearchedUsersAdapter(
-    private val users: MutableList<userCredential>,
+    private val users: MutableList<Pair<String, userCredential>>, // Updated to Pair<String, userCredential>
     private val currentUserId: String,
-    private val onFollowClick: (userCredential) -> Unit
+    private val onFollowClick: (Pair<String, userCredential>) -> Unit // Updated callback
 ) : RecyclerView.Adapter<SearchedUsersAdapter.ViewHolder>() {
 
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -30,7 +30,9 @@ class SearchedUsersAdapter(
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val user = users[position]
+        val userPair = users[position]
+        val user = userPair.second // Get the userCredential from the Pair
+
         holder.usernameTextView.text = user.username
 
         // Load profile picture
@@ -55,7 +57,7 @@ class SearchedUsersAdapter(
             holder.followButton.visibility = View.VISIBLE
             holder.followedText.visibility = View.GONE
             holder.followButton.setOnClickListener {
-                onFollowClick(user)
+                onFollowClick(userPair) // Pass the entire Pair
             }
         }
     }

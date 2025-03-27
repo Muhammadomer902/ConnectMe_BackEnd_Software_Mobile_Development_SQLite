@@ -12,7 +12,6 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
-import de.hdodenhof.circleimageview.CircleImageView
 
 class SearchPage : AppCompatActivity() {
     private lateinit var auth: FirebaseAuth
@@ -20,10 +19,10 @@ class SearchPage : AppCompatActivity() {
     private lateinit var recentSearchesAdapter: RecentSearchesAdapter
     private lateinit var searchedUsersAdapter: SearchedUsersAdapter
     private var currentFilter = "All" // Default filter
-    private var allUsers = mutableListOf<userCredential>()
+    private var allUsers = mutableListOf<Pair<String, userCredential>>() // Store UID and userCredential
     private var currentUser: userCredential? = null
     private var recentSearches = mutableListOf<String>()
-    private var searchedUsers = mutableListOf<userCredential>()
+    private var searchedUsers = mutableListOf<Pair<String, userCredential>>() // Store UID and userCredential
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -63,8 +62,8 @@ class SearchPage : AppCompatActivity() {
         searchedUsersAdapter = SearchedUsersAdapter(
             searchedUsers,
             currentUserId = userId,
-            onFollowClick = { user ->
-                sendFollowRequest(user)
+            onFollowClick = { userPair ->
+                sendFollowRequest(userPair.second) // Pass the userCredential
             }
         )
         searchedUsersRecyclerView.adapter = searchedUsersAdapter
@@ -162,9 +161,10 @@ class SearchPage : AppCompatActivity() {
             override fun onDataChange(snapshot: DataSnapshot) {
                 allUsers.clear()
                 for (userSnapshot in snapshot.children) {
+                    val userId = userSnapshot.key // Get the UID from the snapshot key
                     val user = userSnapshot.getValue(userCredential::class.java)
                     user?.let {
-                        allUsers.add(it)
+                        allUsers.add(Pair(userId ?: "", it)) // Store UID and userCredential as a Pair
                     }
                 }
             }
@@ -176,9 +176,9 @@ class SearchPage : AppCompatActivity() {
     }
 
     private fun performSearch(query: String) {
-        val filteredUsers = allUsers.filter { user ->
-            user.username.lowercase().contains(query.lowercase())
-        }.sortedBy { it.username.lowercase() }.toMutableList()
+        val filteredUsers = allUsers.filter { userPair ->
+            userPair.second.username.lowercase().contains(query.lowercase())
+        }.sortedBy { it.second.username.lowercase() }.toMutableList()
 
         searchedUsers.clear()
         searchedUsers.addAll(filteredUsers)
@@ -186,13 +186,17 @@ class SearchPage : AppCompatActivity() {
     }
 
     private fun applyFilter() {
+        val currentUserId = auth.currentUser?.uid ?: return
         val filteredList = when (currentFilter) {
             "All" -> searchedUsers.toList()
-            "Followers" -> searchedUsers.filter { user ->
-                currentUser?.followers?.contains(user.username) == true
+            "Followers" -> searchedUsers.filter { userPair ->
+                // Check if the searched user's UID is in the current user's followers list
+                currentUser?.followers?.contains(userPair.first) == true
             }
-            "Following" -> searchedUsers.filter { user ->
-                currentUser?.following?.contains(user.username) == true
+            "Following" -> searchedUsers.filter { userPair ->
+                // Check if the current user's UID is in the searched user's followers list
+                // (This means the current user is following the searched user)
+                userPair.second.followers.contains(currentUserId)
             }
             else -> searchedUsers.toList()
         }
