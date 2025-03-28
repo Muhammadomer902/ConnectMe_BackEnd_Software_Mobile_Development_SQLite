@@ -9,7 +9,7 @@
         android:id="@+id/profilePic"
         android:layout_width="50dp"
         android:layout_height="50dp"
-        android:src="@drawable/chatprofilepicture1"
+        android:src="@drawable/dummyprofilepic"
         android:layout_marginBottom="20dp"/>
 
     <TextView

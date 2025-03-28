@@ -6,5 +6,6 @@ data class Message(
     val image: String = "", // Base64 string, to be implemented later
     val senderId: String = "",
     val timestamp: Long = 0L,
-    var isSeen: Boolean = false // For Vanish Mode
+    var isSeen: Boolean = false, // For Vanish Mode
+    val vanish: Boolean = false // Indicates if the message was sent in Vanish Mode
 )

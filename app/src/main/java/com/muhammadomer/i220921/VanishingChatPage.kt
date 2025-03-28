@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.util.Base64
+import android.util.Log
 import android.view.GestureDetector
 import android.view.MotionEvent
 import android.widget.Button
@@ -101,7 +102,7 @@ class VanishingChatPage : AppCompatActivity() {
                 if (e1 == null || e2 == null) return false
                 val diffY = e2.y - e1.y
                 val diffX = e2.x - e1.x
-                val swipeThreshold = 250f
+                val swipeThreshold = 150f
                 if (Math.abs(diffY) > Math.abs(diffX) && diffY > 0 && Math.abs(diffY) > swipeThreshold) {
                     val intent = Intent(this@VanishingChatPage, ChatPage::class.java)
                     intent.putExtra("recipientUid", recipientUid)
@@ -117,6 +118,7 @@ class VanishingChatPage : AppCompatActivity() {
         back.setOnClickListener {
             val intent = Intent(this, DMPage::class.java)
             startActivity(intent)
+            finish() // Ensure the activity is destroyed
         }
 
         val profile = findViewById<Button>(R.id.Profile)
@@ -163,7 +165,8 @@ class VanishingChatPage : AppCompatActivity() {
             messageId = messageId,
             text = text,
             senderId = currentUserId,
-            timestamp = System.currentTimeMillis()
+            timestamp = System.currentTimeMillis(),
+            vanish = true // Messages in VanishingChatPage are in Vanish Mode
         )
 
         val chatPath1 = "Chat/$currentUserId/$recipientUid/messages/$messageId"
@@ -180,9 +183,29 @@ class VanishingChatPage : AppCompatActivity() {
         val chatPath1 = "Chat/$currentUserId/$recipientUid/messages"
         val chatPath2 = "Chat/$recipientUid/$currentUserId/messages"
 
-        messages.filter { it.isSeen }.forEach { message ->
-            database.child(chatPath1).child(message.messageId).removeValue()
-            database.child(chatPath2).child(message.messageId).removeValue()
+        // Fetch the latest messages from Firebase before deleting
+        database.child(chatPath1).get().addOnSuccessListener { snapshot ->
+            val latestMessages = mutableListOf<Message>()
+            for (data in snapshot.children) {
+                val message = data.getValue(Message::class.java)?.copy(messageId = data.key ?: "")
+                message?.let { latestMessages.add(it) }
+            }
+
+            // Filter and delete messages that are in Vanish Mode and have been seen
+            val messagesToDelete = latestMessages.filter { it.vanish && it.isSeen }
+            messagesToDelete.forEach { message ->
+                Log.d("VanishingChatPage", "Deleting message: ${message.messageId}, text: ${message.text}")
+                database.child(chatPath1).child(message.messageId).removeValue()
+                    .addOnFailureListener { e ->
+                        Log.e("VanishingChatPage", "Failed to delete message from chatPath1: ${e.message}")
+                    }
+                database.child(chatPath2).child(message.messageId).removeValue()
+                    .addOnFailureListener { e ->
+                        Log.e("VanishingChatPage", "Failed to delete message from chatPath2: ${e.message}")
+                    }
+            }
+        }.addOnFailureListener { e ->
+            Log.e("VanishingChatPage", "Failed to fetch messages for deletion: ${e.message}")
         }
     }
 

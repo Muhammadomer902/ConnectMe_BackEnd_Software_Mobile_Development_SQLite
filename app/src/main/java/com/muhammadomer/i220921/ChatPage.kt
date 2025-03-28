@@ -101,7 +101,7 @@ class ChatPage : AppCompatActivity() {
                 if (e1 == null || e2 == null) return false
                 val diffY = e2.y - e1.y
                 val diffX = e2.x - e1.x
-                val swipeThreshold = 250f
+                val swipeThreshold = 150f
                 if (Math.abs(diffY) > Math.abs(diffX) && diffY < 0 && Math.abs(diffY) > swipeThreshold) {
                     val intent = Intent(this@ChatPage, VanishingChatPage::class.java)
                     intent.putExtra("recipientUid", recipientUid)
@@ -175,7 +175,8 @@ class ChatPage : AppCompatActivity() {
             messageId = messageId,
             text = text,
             senderId = currentUserId,
-            timestamp = System.currentTimeMillis()
+            timestamp = System.currentTimeMillis(),
+            vanish = false // Messages in ChatPage are not in Vanish Mode
         )
 
         val chatPath1 = "Chat/$currentUserId/$recipientUid/messages/$messageId"
