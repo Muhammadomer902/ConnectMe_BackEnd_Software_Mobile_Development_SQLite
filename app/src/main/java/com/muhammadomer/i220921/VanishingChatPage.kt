@@ -88,8 +88,8 @@ class VanishingChatPage : AppCompatActivity() {
             if (text.isNotEmpty()) {
                 sendMessage(text)
                 messageInput.text.clear()
-                // Scroll to the last message after sending
-                messagesRecyclerView.scrollToPosition(messages.size - 1)
+                // Scroll to the last item in the adapter (the VanishMssg)
+                messagesRecyclerView.scrollToPosition(messageAdapter.itemCount - 1)
             }
         }
 
@@ -151,7 +151,8 @@ class VanishingChatPage : AppCompatActivity() {
                     message?.let { messages.add(it) }
                 }
                 messageAdapter.notifyDataSetChanged()
-                messagesRecyclerView.scrollToPosition(messages.size - 1)
+                // Scroll to the last item in the adapter (the VanishMssg)
+                messagesRecyclerView.scrollToPosition(messageAdapter.itemCount - 1)
             }
 
             override fun onCancelled(error: DatabaseError) {

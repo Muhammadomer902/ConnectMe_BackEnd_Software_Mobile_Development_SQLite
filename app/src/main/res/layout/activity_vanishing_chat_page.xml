@@ -91,15 +91,6 @@
                 android:clipToPadding="false"
                 tools:listitem="@layout/item_user_message_vanish" />
 
-            <TextView
-                android:id="@+id/VanishMssg"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:textColor="@color/white"
-                android:textAlignment="center"
-                android:text="You’ve turned on vanish mode. New messages will disappear in 24 hours after everyone has seen them."
-                android:padding="10dp"/>
-
         </RelativeLayout>
 
         <RelativeLayout

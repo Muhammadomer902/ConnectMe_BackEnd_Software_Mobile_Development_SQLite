@@ -29,46 +29,75 @@ class MessageAdapter(
     companion object {
         private const val VIEW_TYPE_USER = 1
         private const val VIEW_TYPE_OTHER = 2
+        private const val VIEW_TYPE_VANISH_MESSAGE = 3
         private const val EDIT_DELETE_WINDOW = 5 * 60 * 1000 // 5 minutes in milliseconds
     }
 
     override fun getItemViewType(position: Int): Int {
+        // If in Vanish Mode and at the last position, show the VanishMssg
+        if (isVanishMode && position == messages.size) {
+            return VIEW_TYPE_VANISH_MESSAGE
+        }
+        // Otherwise, determine if it's a user or other message
         return if (messages[position].senderId == currentUserId) VIEW_TYPE_USER else VIEW_TYPE_OTHER
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
-        return if (viewType == VIEW_TYPE_USER) {
-            val layout = if (isVanishMode) R.layout.item_user_message_vanish else R.layout.item_user_message
-            val view = LayoutInflater.from(parent.context).inflate(layout, parent, false)
-            UserMessageViewHolder(view)
-        } else {
-            val layout = if (isVanishMode) R.layout.item_other_message_vanish else R.layout.item_other_message
-            val view = LayoutInflater.from(parent.context).inflate(layout, parent, false)
-            OtherMessageViewHolder(view)
+        return when (viewType) {
+            VIEW_TYPE_USER -> {
+                val layout = if (isVanishMode) R.layout.item_user_message_vanish else R.layout.item_user_message
+                val view = LayoutInflater.from(parent.context).inflate(layout, parent, false)
+                UserMessageViewHolder(view)
+            }
+            VIEW_TYPE_OTHER -> {
+                val layout = if (isVanishMode) R.layout.item_other_message_vanish else R.layout.item_other_message
+                val view = LayoutInflater.from(parent.context).inflate(layout, parent, false)
+                OtherMessageViewHolder(view)
+            }
+            VIEW_TYPE_VANISH_MESSAGE -> {
+                val view = LayoutInflater.from(parent.context).inflate(R.layout.item_vanish_message, parent, false)
+                VanishMessageViewHolder(view)
+            }
+            else -> throw IllegalArgumentException("Invalid view type")
         }
     }
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
-        val message = messages[position]
-        if (holder is UserMessageViewHolder) {
-            holder.bind(message)
-            holder.itemView.setOnLongClickListener {
-                if (canEditOrDelete(message) && message.image.isEmpty()) { // Only allow edit/delete for text messages
-                    showEditDeleteDialog(message, position)
+        when (holder) {
+            is UserMessageViewHolder -> {
+                val message = messages[position]
+                holder.bind(message)
+                holder.itemView.setOnLongClickListener {
+                    if (canEditOrDelete(message) && message.image.isEmpty()) { // Only allow edit/delete for text messages
+                        showEditDeleteDialog(message, position)
+                    }
+                    true
                 }
-                true
+                // Mark message as seen in Vanish Mode
+                if (isVanishMode && !message.isSeen) {
+                    message.isSeen = true
+                    updateMessageInFirebase(message)
+                }
             }
-        } else if (holder is OtherMessageViewHolder) {
-            holder.bind(message, recipientProfileBitmap)
-        }
-        // Mark message as seen in Vanish Mode
-        if (isVanishMode && !message.isSeen) {
-            message.isSeen = true
-            updateMessageInFirebase(message)
+            is OtherMessageViewHolder -> {
+                val message = messages[position]
+                holder.bind(message, recipientProfileBitmap)
+                // Mark message as seen in Vanish Mode
+                if (isVanishMode && !message.isSeen) {
+                    message.isSeen = true
+                    updateMessageInFirebase(message)
+                }
+            }
+            is VanishMessageViewHolder -> {
+                // No binding needed, the text is static in the layout
+            }
         }
     }
 
-    override fun getItemCount(): Int = messages.size
+    override fun getItemCount(): Int {
+        // Add 1 to the count if in Vanish Mode to account for the VanishMssg
+        return if (isVanishMode) messages.size + 1 else messages.size
+    }
 
     private fun canEditOrDelete(message: Message): Boolean {
         val currentTime = System.currentTimeMillis()
@@ -206,5 +235,9 @@ class MessageAdapter(
                 profilePic.setImageBitmap(it)
             }
         }
+    }
+
+    class VanishMessageViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        // No additional binding needed, the text is static in the layout
     }
 }
