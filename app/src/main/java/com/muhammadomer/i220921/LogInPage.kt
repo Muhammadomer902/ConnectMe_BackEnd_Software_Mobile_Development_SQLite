@@ -19,6 +19,7 @@ class LogInPage : AppCompatActivity() {
     private lateinit var loginBtn: Button
     private lateinit var registerBtn: Button
 
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()

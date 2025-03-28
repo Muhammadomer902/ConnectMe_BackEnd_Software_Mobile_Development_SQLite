@@ -212,7 +212,6 @@ class ChatPage : AppCompatActivity() {
                     } else {
                         profilePic.setImageResource(R.drawable.chatprofilepicture1)
                     }
-
                     // Update online status
                     val onlineStatusText = findViewById<TextView>(R.id.OnlineStatus)
                     val isOnline = snapshot.child("isOnline").getValue(Boolean::class.java) ?: false
