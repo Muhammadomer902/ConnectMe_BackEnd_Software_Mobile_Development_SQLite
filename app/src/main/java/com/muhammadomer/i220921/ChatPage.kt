@@ -126,6 +126,7 @@ class ChatPage : AppCompatActivity() {
         val voiceCall = findViewById<Button>(R.id.VoiceCall)
         voiceCall.setOnClickListener {
             val intent = Intent(this, VoiceCallPage::class.java)
+            intent.putExtra("recipientUid", recipientUid)
             startActivity(intent)
         }
 

@@ -62,4 +62,6 @@ dependencies {
     implementation (files("libs/exifinterface-1.3.7.aar"))
     androidTestImplementation(libs.androidx.espresso.contrib)
 
+    implementation("io.agora.rtc:voice-sdk:4.3.0") // Check for the latest version
+
 }

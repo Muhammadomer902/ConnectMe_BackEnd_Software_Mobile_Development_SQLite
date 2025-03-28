@@ -18,7 +18,7 @@
 
         <TextView
             android:id="@+id/CallName"
-            android:text="Henry Benjamin"
+            android:text="Loading..."
             android:layout_marginTop="60dp"
             android:textSize="20sp"
             android:textColor="#1D1D1D"
@@ -32,20 +32,21 @@
             android:layout_marginTop="100dp"
             android:layout_below="@id/CallName"
             android:layout_centerHorizontal="true"
-            android:src="@drawable/chatprofilepicture1"
+            android:src="@drawable/dummyprofilepic"
             android:layout_width="200dp"
             android:layout_height="200dp"/>
 
         <TextView
-            android:layout_below="@id/ProfilePic"
-            android:text="10:32"
-            android:textStyle="bold"
-            android:textSize="20sp"
-            android:textColor="#1D1D1D"
-            android:layout_centerHorizontal="true"
-            android:layout_marginTop="20dp"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"/>
+            android:id="@+id/callDuration"
+        android:layout_below="@id/ProfilePic"
+        android:text="00:00"
+        android:textStyle="bold"
+        android:textSize="20sp"
+        android:textColor="#1D1D1D"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="20dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"/>
 
         <RelativeLayout
             android:background="@drawable/text_background"
@@ -89,13 +90,13 @@
                 android:background="@drawable/mutelogo"/>
 
             <Button
-                android:id="@+id/Chat"
-                android:layout_marginLeft="15dp"
-                android:layout_centerVertical="true"
-                android:layout_toRightOf="@id/Mic"
-                android:layout_width="45dp"
-                android:layout_height="45dp"
-                android:background="@drawable/endcalllogo"/>
+                android:id="@+id/EndCall"
+            android:layout_marginLeft="15dp"
+            android:layout_centerVertical="true"
+            android:layout_toRightOf="@id/Mic"
+            android:layout_width="45dp"
+            android:layout_height="45dp"
+            android:background="@drawable/endcalllogo"/>
 
         </RelativeLayout>
 
