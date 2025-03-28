@@ -60,5 +60,6 @@ dependencies {
 
     // Add ExifInterface dependency to fix the crash
     implementation (files("libs/exifinterface-1.3.7.aar"))
+    androidTestImplementation(libs.androidx.espresso.contrib)
 
 }
