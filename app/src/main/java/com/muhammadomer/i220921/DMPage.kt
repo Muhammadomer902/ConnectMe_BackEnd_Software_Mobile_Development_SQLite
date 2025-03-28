@@ -98,7 +98,8 @@ class DMPage : AppCompatActivity() {
 
         val back = findViewById<Button>(R.id.Back)
         back.setOnClickListener {
-            finish() // Go back to the previous activity (likely HomePage)
+            val intent = Intent(this, HomePage::class.java)
+            startActivity(intent)
         }
     }
 

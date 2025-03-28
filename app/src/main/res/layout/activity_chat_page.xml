@@ -35,7 +35,7 @@
             <TextView
                 android:id="@+id/Username"
                 android:layout_centerVertical="true"
-                android:text="Henry Benjamin"
+                android:text="Loading..."
                 android:textSize="20sp"
                 android:textColor="#303032"
                 android:layout_toRightOf="@id/Back"
@@ -67,13 +67,13 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content">
 
-            <ImageView
+            <de.hdodenhof.circleimageview.CircleImageView
                 android:id="@+id/ProfilePic"
                 android:layout_marginTop="30dp"
-                android:src="@drawable/chatprofilepicture1"
+                android:src="@drawable/dummyprofilepic"
                 android:layout_centerHorizontal="true"
-                android:layout_width="80dp"
-                android:layout_height="80dp"/>
+                android:layout_width="120dp"
+                android:layout_height="120dp"/>
 
             <Button
                 android:id="@+id/Profile"
@@ -91,161 +91,27 @@
 
         </RelativeLayout>
 
-<!--        <Button-->
-<!--            android:id="@+id/VanishingChat"-->
-<!--            android:layout_width="wrap_content"-->
-<!--            android:layout_height="wrap_content"-->
-<!--            android:text="Vanishing Chat"-->
-<!--            android:layout_below="@id/ChatPerson"-->
-<!--            android:layout_centerHorizontal="true"-->
-<!--            android:layout_marginStart="16dp"-->
-<!--            android:layout_marginTop="200dp"/>-->
-
         <RelativeLayout
             android:id="@+id/ChatBox"
             android:layout_below="@id/ChatPerson"
+            android:layout_above="@id/TextBar"
             android:layout_width="match_parent"
-            android:layout_height="430dp">
+            android:layout_height="wrap_content">
 
-            <RelativeLayout
-                android:id="@+id/Chat1"
-                android:layout_alignParentBottom="true"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content">
+            <androidx.core.widget.NestedScrollView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:fillViewport="true">
 
-                <ImageView
-                    android:id="@+id/ProfilePic1"
-                    android:layout_marginBottom="20dp"
-                    android:src="@drawable/chatprofilepicture1"
-                    android:layout_width="50dp"
-                    android:layout_height="50dp"/>
-
-                <TextView
-                    android:id="@+id/Text1"
-                    android:layout_toRightOf="@+id/ProfilePic1"
-                    android:text="Good to know"
-                    android:textSize="20sp"
-                    android:paddingHorizontal="20dp"
-                    android:paddingVertical="10dp"
-                    android:textColor="#1D1D1D"
-                    android:background="@drawable/chat_rectangle_button"
-                    android:layout_width="wrap_content"
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/messagesRecyclerView"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginLeft="20dp"/>
+                    android:paddingBottom="10dp"
+                    android:clipToPadding="false"
+                    tools:listitem="@layout/item_user_message" />
 
-                <TextView
-                    android:layout_below="@+id/Text1"
-                    android:text="01:30"
-                    android:layout_marginTop="5dp"
-                    android:layout_marginLeft="40dp"
-                    android:layout_toRightOf="@id/ProfilePic1"
-                    android:textColor="#B1B8C0"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"/>
-
-            </RelativeLayout>
-
-            <RelativeLayout
-                android:id="@+id/UserChat1"
-                android:layout_above="@+id/Chat1"
-                android:layout_alignParentRight="true"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content">
-
-                <TextView
-                    android:id="@+id/UserText1"
-                    android:text="I am doing well"
-                    android:textSize="20sp"
-                    android:paddingHorizontal="20dp"
-                    android:paddingVertical="10dp"
-                    android:textColor="#1D1D1D"
-                    android:background="@drawable/chat_rectangle_button"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginLeft="20dp"/>
-
-                <TextView
-                    android:layout_below="@+id/UserText1"
-                    android:layout_alignEnd="@+id/UserText1"
-                    android:text="01:30"
-                    android:layout_marginTop="5dp"
-                    android:layout_marginRight="20dp"
-                    android:textColor="#B1B8C0"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"/>
-
-            </RelativeLayout>
-
-            <RelativeLayout
-                android:id="@+id/Chat2"
-                android:layout_above="@+id/UserChat1"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content">
-
-                <ImageView
-                    android:id="@+id/ProfilePic2"
-                    android:layout_marginBottom="20dp"
-                    android:src="@drawable/chatprofilepicture1"
-                    android:layout_width="50dp"
-                    android:layout_height="50dp"/>
-
-                <TextView
-                    android:id="@+id/Text2"
-                    android:maxWidth="300dp"
-                    android:layout_toRightOf="@+id/ProfilePic2"
-                    android:text="Hi, I am good, Wbu?"
-                    android:textSize="20sp"
-                    android:paddingHorizontal="20dp"
-                    android:paddingVertical="10dp"
-                    android:textColor="#1D1D1D"
-                    android:background="@drawable/chat_rectangle_button"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginLeft="20dp"/>
-
-                <TextView
-                    android:layout_below="@+id/Text2"
-                    android:text="10:32"
-                    android:layout_marginTop="5dp"
-                    android:layout_marginLeft="40dp"
-                    android:layout_toRightOf="@id/ProfilePic2"
-                    android:textColor="#B1B8C0"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"/>
-
-            </RelativeLayout>
-
-            <RelativeLayout
-                android:id="@+id/UserChat2"
-                android:layout_above="@+id/Chat2"
-                android:layout_alignParentRight="true"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content">
-
-                <TextView
-                    android:id="@+id/UserText2"
-                    android:maxWidth="300dp"
-                    android:text="Hello, How are you?"
-                    android:textSize="20sp"
-                    android:paddingHorizontal="20dp"
-                    android:paddingVertical="10dp"
-                    android:textColor="#1D1D1D"
-                    android:background="@drawable/chat_rectangle_button"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginLeft="20dp"/>
-
-                <TextView
-                    android:layout_below="@+id/UserText2"
-                    android:layout_alignEnd="@+id/UserText2"
-                    android:text="10:30"
-                    android:layout_marginTop="5dp"
-                    android:layout_marginRight="20dp"
-                    android:textColor="#B1B8C0"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"/>
-
-            </RelativeLayout>
+            </androidx.core.widget.NestedScrollView>
 
         </RelativeLayout>
 
@@ -256,6 +122,7 @@
             android:layout_height="wrap_content">
 
             <EditText
+                android:id="@+id/messageInput"
                 android:background="@drawable/text_background"
                 android:layout_width="match_parent"
                 android:hint="Typing..."
@@ -264,6 +131,7 @@
                 android:layout_height="wrap_content"/>
 
             <ImageView
+                android:id="@+id/sendButton"
                 android:layout_alignParentEnd="true"
                 android:layout_marginTop="22dp"
                 android:src="@drawable/sendlogo"
