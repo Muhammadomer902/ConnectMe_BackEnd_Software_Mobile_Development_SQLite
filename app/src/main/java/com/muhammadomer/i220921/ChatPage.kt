@@ -34,6 +34,7 @@ class ChatPage : AppCompatActivity() {
     private lateinit var sendButton: ImageView
     private var recipientProfileBitmap: Bitmap? = null
     private lateinit var gestureDetector: GestureDetector
+    private var onlineStatusListener: ValueEventListener? = null // To remove the listener later
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -73,7 +74,7 @@ class ChatPage : AppCompatActivity() {
         ) { fetchMessages() }
         messagesRecyclerView.adapter = messageAdapter
 
-        // Load recipient's data (name and profile picture)
+        // Load recipient's data (name, profile picture, and online status)
         loadRecipientData()
 
         // Fetch messages from Firebase
@@ -189,44 +190,66 @@ class ChatPage : AppCompatActivity() {
     }
 
     private fun loadRecipientData() {
-        database.child("RegisteredUsers").child(recipientUid)
-            .addListenerForSingleValueEvent(object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    val recipient = snapshot.getValue(userCredential::class.java)
-                    recipient?.let {
-                        findViewById<TextView>(R.id.Username).text = it.username
-                        val profilePic = findViewById<CircleImageView>(R.id.ProfilePic)
-                        if (it.profileImage.isNotEmpty()) {
-                            try {
-                                val decodedImage = Base64.decode(it.profileImage, Base64.DEFAULT)
-                                val bitmap = BitmapFactory.decodeByteArray(decodedImage, 0, decodedImage.size)
-                                profilePic.setImageBitmap(bitmap)
-                                recipientProfileBitmap = bitmap
-                            } catch (e: Exception) {
-                                profilePic.setImageResource(R.drawable.chatprofilepicture1)
-                            }
-                        } else {
+        val recipientRef = database.child("RegisteredUsers").child(recipientUid)
+        onlineStatusListener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val recipient = snapshot.getValue(userCredential::class.java)
+                recipient?.let {
+                    // Update username
+                    findViewById<TextView>(R.id.Username).text = it.username
+
+                    // Update profile picture
+                    val profilePic = findViewById<CircleImageView>(R.id.ProfilePic)
+                    if (it.profileImage.isNotEmpty()) {
+                        try {
+                            val decodedImage = Base64.decode(it.profileImage, Base64.DEFAULT)
+                            val bitmap = BitmapFactory.decodeByteArray(decodedImage, 0, decodedImage.size)
+                            profilePic.setImageBitmap(bitmap)
+                            recipientProfileBitmap = bitmap
+                        } catch (e: Exception) {
                             profilePic.setImageResource(R.drawable.chatprofilepicture1)
                         }
-
-                        messageAdapter = MessageAdapter(
-                            this@ChatPage,
-                            messages,
-                            false,
-                            auth.currentUser?.uid ?: "",
-                            recipientUid,
-                            recipientProfileBitmap
-                        ) { fetchMessages() }
-                        messagesRecyclerView.adapter = messageAdapter
-                        fetchMessages()
-                    } ?: run {
-                        Toast.makeText(this@ChatPage, "Recipient data not found", Toast.LENGTH_SHORT).show()
+                    } else {
+                        profilePic.setImageResource(R.drawable.chatprofilepicture1)
                     }
-                }
 
-                override fun onCancelled(error: DatabaseError) {
-                    Toast.makeText(this@ChatPage, "Failed to load recipient: ${error.message}", Toast.LENGTH_SHORT).show()
+                    // Update online status
+                    val onlineStatusText = findViewById<TextView>(R.id.OnlineStatus)
+                    val isOnline = snapshot.child("isOnline").getValue(Boolean::class.java) ?: false
+                    onlineStatusText.text = if (isOnline) "Online" else "Offline"
+                    onlineStatusText.setTextColor(
+                        if (isOnline) resources.getColor(android.R.color.holo_green_dark)
+                        else resources.getColor(android.R.color.darker_gray)
+                    )
+
+                    // Update the message adapter with the new profile bitmap
+                    messageAdapter = MessageAdapter(
+                        this@ChatPage,
+                        messages,
+                        false,
+                        auth.currentUser?.uid ?: "",
+                        recipientUid,
+                        recipientProfileBitmap
+                    ) { fetchMessages() }
+                    messagesRecyclerView.adapter = messageAdapter
+                    fetchMessages()
+                } ?: run {
+                    Toast.makeText(this@ChatPage, "Recipient data not found", Toast.LENGTH_SHORT).show()
                 }
-            })
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                Toast.makeText(this@ChatPage, "Failed to load recipient: ${error.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+        recipientRef.addValueEventListener(onlineStatusListener!!)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // Remove the online status listener to prevent memory leaks
+        onlineStatusListener?.let {
+            database.child("RegisteredUsers").child(recipientUid).removeEventListener(it)
+        }
     }
 }

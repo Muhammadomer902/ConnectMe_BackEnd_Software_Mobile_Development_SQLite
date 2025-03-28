@@ -42,7 +42,6 @@ class LogInPage : AppCompatActivity() {
         }
 
         // Handle login button click
-
         loginBtn.setOnClickListener {
             val username = usernameInput.text.toString().trim()
             val password = passwordInput.text.toString().trim()
@@ -76,6 +75,14 @@ class LogInPage : AppCompatActivity() {
                             auth.signInWithEmailAndPassword(email, password)
                                 .addOnCompleteListener { task ->
                                     if (task.isSuccessful) {
+                                        // Set user as online and set up onDisconnect
+                                        val userId = auth.currentUser?.uid
+                                        if (userId != null) {
+                                            val userOnlineRef = database.child(userId).child("isOnline")
+                                            userOnlineRef.setValue(true) // Set user as online
+                                            userOnlineRef.onDisconnect().setValue(false) // Set to offline when disconnected
+                                        }
+
                                         Toast.makeText(this, "Login successful", Toast.LENGTH_SHORT).show()
                                         val intent = Intent(this, HomePage::class.java)
                                         startActivity(intent)

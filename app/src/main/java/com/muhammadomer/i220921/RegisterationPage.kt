@@ -119,8 +119,14 @@ class RegisterationPage : AppCompatActivity() {
                             following = emptyList(),
                             stories = emptyList(),           // Initialize stories
                             pendingFollowRequests = emptyList(), // Initialize pendingFollowRequests
-                            recentSearches = emptyList()     // Initialize recentSearches
+                            recentSearches = emptyList(),     // Initialize recentSearches
+                            isOnline = true                   // Set user as online upon registration
                         )
+
+                        // Set up onDisconnect to mark user as offline
+                        val userOnlineRef = database.child(userId).child("isOnline")
+                        userOnlineRef.setValue(true) // Set user as online
+                        userOnlineRef.onDisconnect().setValue(false) // Set to offline when disconnected
 
                         database.child(userId).setValue(registerUser)
                             .addOnSuccessListener {

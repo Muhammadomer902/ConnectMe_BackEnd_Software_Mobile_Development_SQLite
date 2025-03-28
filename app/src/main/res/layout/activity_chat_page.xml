@@ -75,10 +75,21 @@
                 android:layout_width="120dp"
                 android:layout_height="120dp"/>
 
+            <TextView
+                android:id="@+id/OnlineStatus"
+                android:layout_below="@id/ProfilePic"
+                android:layout_centerHorizontal="true"
+                android:text="Offline"
+                android:textSize="14sp"
+                android:textColor="#303032"
+                android:layout_marginTop="5dp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"/>
+
             <Button
                 android:id="@+id/Profile"
                 android:layout_centerHorizontal="true"
-                android:layout_below="@id/ProfilePic"
+                android:layout_below="@id/OnlineStatus"
                 android:text="View Profile"
                 android:textAllCaps="false"
                 android:background="@drawable/grey_rectangle_button"
@@ -87,7 +98,7 @@
                 android:paddingHorizontal="20dp"
                 android:textStyle="bold"
                 android:textSize="15sp"
-                android:layout_marginTop="20dp"/>
+                android:layout_marginTop="10dp"/>
 
         </RelativeLayout>
 
