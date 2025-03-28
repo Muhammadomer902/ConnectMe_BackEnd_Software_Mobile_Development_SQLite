@@ -35,6 +35,13 @@ class LogInPage : AppCompatActivity() {
 
         // Check if user is already logged in
         if (auth.currentUser != null) {
+            val userId = auth.currentUser?.uid
+            if (userId != null) {
+                val userOnlineRef = database.child(userId).child("isOnline")
+                userOnlineRef.setValue(true) // Set user as online
+                userOnlineRef.onDisconnect().setValue(false) // Set to offline when disconnected
+            }
+
             // If user is already logged in, go to HomePage
             val intent = Intent(this, HomePage::class.java)
             startActivity(intent)
