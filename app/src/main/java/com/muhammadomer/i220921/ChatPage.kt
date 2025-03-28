@@ -87,6 +87,8 @@ class ChatPage : AppCompatActivity() {
             if (text.isNotEmpty()) {
                 sendMessage(text)
                 messageInput.text.clear()
+                // Scroll to the last message after sending
+                messagesRecyclerView.scrollToPosition(messages.size - 1)
             }
         }
 
