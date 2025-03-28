@@ -24,6 +24,7 @@ import com.google.firebase.database.*
 import de.hdodenhof.circleimageview.CircleImageView
 
 class ChatPage : AppCompatActivity() {
+
     private lateinit var auth: FirebaseAuth
     private lateinit var database: DatabaseReference
     private var recipientUid: String = ""

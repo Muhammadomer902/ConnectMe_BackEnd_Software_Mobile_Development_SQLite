@@ -18,8 +18,7 @@ data class userCredential(
     val pendingFollowRequests: List<String> = emptyList(),
     val recentSearches: List<String> = emptyList(),
     val isOnline: Boolean = false // Added isOnline field
-)
-{
+) {
     // Default constructor for Firebase deserialization
     constructor() : this("", "", "", "", "", "", "", emptyList(), emptyList(), emptyList(), emptyList(), emptyList(), emptyList(), false)
 }
