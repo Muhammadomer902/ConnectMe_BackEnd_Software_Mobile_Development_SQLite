@@ -12,24 +12,41 @@
         android:src="@drawable/dummyprofilepic"
         android:layout_marginBottom="20dp"/>
 
-    <TextView
-        android:id="@+id/otherMessageText"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+    <RelativeLayout
+        android:id="@+id/TI"
         android:layout_toRightOf="@id/profilePic"
-        android:maxWidth="300dp"
-        android:textSize="20sp"
-        android:paddingHorizontal="20dp"
-        android:paddingVertical="10dp"
-        android:textColor="@color/white"
-        android:background="@drawable/vanish_chat_rectangle_button"
-        android:layout_marginLeft="20dp"/>
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content">
+
+        <TextView
+            android:id="@+id/otherMessageText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:maxWidth="300dp"
+            android:textSize="20sp"
+            android:paddingHorizontal="20dp"
+            android:paddingVertical="10dp"
+            android:textColor="#1D1D1D"
+            android:background="@drawable/vanish_chat_rectangle_button"
+            android:layout_marginLeft="20dp"/>
+
+        <ImageView
+            android:id="@+id/otherMessageImage"
+            android:layout_width="150dp"
+            android:layout_height="150dp"
+            android:scaleType="centerCrop"
+            android:padding="6dp"
+            android:layout_marginLeft="20dp"
+            android:visibility="gone" />
+
+    </RelativeLayout>
+
 
     <TextView
         android:id="@+id/otherMessageTimestamp"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_below="@id/otherMessageText"
+        android:layout_below="@id/TI"
         android:layout_toRightOf="@id/profilePic"
         android:textSize="12sp"
         android:textColor="#B1B8C0"

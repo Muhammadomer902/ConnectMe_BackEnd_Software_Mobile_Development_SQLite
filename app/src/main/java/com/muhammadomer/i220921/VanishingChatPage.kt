@@ -102,7 +102,7 @@ class VanishingChatPage : AppCompatActivity() {
                 if (e1 == null || e2 == null) return false
                 val diffY = e2.y - e1.y
                 val diffX = e2.x - e1.x
-                val swipeThreshold = 150f
+                val swipeThreshold = 250f
                 if (Math.abs(diffY) > Math.abs(diffX) && diffY > 0 && Math.abs(diffY) > swipeThreshold) {
                     val intent = Intent(this@VanishingChatPage, ChatPage::class.java)
                     intent.putExtra("recipientUid", recipientUid)

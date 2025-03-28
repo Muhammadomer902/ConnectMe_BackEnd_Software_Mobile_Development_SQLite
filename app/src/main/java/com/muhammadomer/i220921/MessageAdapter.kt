@@ -3,11 +3,14 @@ package com.muhammadomer.i220921
 import android.app.AlertDialog
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.text.format.DateUtils
+import android.util.Base64
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.google.firebase.database.FirebaseDatabase
@@ -50,7 +53,7 @@ class MessageAdapter(
         if (holder is UserMessageViewHolder) {
             holder.bind(message)
             holder.itemView.setOnLongClickListener {
-                if (canEditOrDelete(message)) {
+                if (canEditOrDelete(message) && message.image.isEmpty()) { // Only allow edit/delete for text messages
                     showEditDeleteDialog(message, position)
                 }
                 true
@@ -130,10 +133,32 @@ class MessageAdapter(
 
     class UserMessageViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val messageText: TextView = itemView.findViewById(R.id.userMessageText)
+        private val messageImage: ImageView = itemView.findViewById(R.id.userMessageImage)
         private val timestamp: TextView = itemView.findViewById(R.id.userMessageTimestamp)
 
         fun bind(message: Message) {
-            messageText.text = message.text
+            // Display text message
+            if (message.text.isNotEmpty()) {
+                messageText.visibility = View.VISIBLE
+                messageText.text = message.text
+                messageImage.visibility = View.GONE
+            }
+            // Display image message
+            else if (message.image.isNotEmpty()) {
+                messageText.visibility = View.GONE
+                messageImage.visibility = View.VISIBLE
+                try {
+                    val decodedImage = Base64.decode(message.image, Base64.DEFAULT)
+                    val bitmap = BitmapFactory.decodeByteArray(decodedImage, 0, decodedImage.size)
+                    messageImage.setImageBitmap(bitmap)
+                } catch (e: Exception) {
+                    messageImage.setImageResource(R.drawable.dummyprofilepic) // Use existing drawable
+                }
+            } else {
+                messageText.visibility = View.GONE
+                messageImage.visibility = View.GONE
+            }
+
             timestamp.text = DateUtils.getRelativeTimeSpanString(
                 message.timestamp,
                 System.currentTimeMillis(),
@@ -145,10 +170,32 @@ class MessageAdapter(
     class OtherMessageViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val profilePic: CircleImageView = itemView.findViewById(R.id.profilePic)
         private val messageText: TextView = itemView.findViewById(R.id.otherMessageText)
+        private val messageImage: ImageView = itemView.findViewById(R.id.otherMessageImage)
         private val timestamp: TextView = itemView.findViewById(R.id.otherMessageTimestamp)
 
         fun bind(message: Message, profileBitmap: Bitmap?) {
-            messageText.text = message.text
+            // Display text message
+            if (message.text.isNotEmpty()) {
+                messageText.visibility = View.VISIBLE
+                messageText.text = message.text
+                messageImage.visibility = View.GONE
+            }
+            // Display image message
+            else if (message.image.isNotEmpty()) {
+                messageText.visibility = View.GONE
+                messageImage.visibility = View.VISIBLE
+                try {
+                    val decodedImage = Base64.decode(message.image, Base64.DEFAULT)
+                    val bitmap = BitmapFactory.decodeByteArray(decodedImage, 0, decodedImage.size)
+                    messageImage.setImageBitmap(bitmap)
+                } catch (e: Exception) {
+                    messageImage.setImageResource(R.drawable.dummyprofilepic) // Use existing drawable
+                }
+            } else {
+                messageText.visibility = View.GONE
+                messageImage.visibility = View.GONE
+            }
+
             timestamp.text = DateUtils.getRelativeTimeSpanString(
                 message.timestamp,
                 System.currentTimeMillis(),

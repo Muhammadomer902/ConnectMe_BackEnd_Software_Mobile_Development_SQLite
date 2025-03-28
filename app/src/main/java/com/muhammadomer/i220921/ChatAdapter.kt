@@ -1,5 +1,6 @@
 package com.muhammadomer.i220921
 
+import android.content.Intent
 import android.graphics.BitmapFactory
 import android.util.Base64
 import android.view.LayoutInflater
@@ -54,6 +55,9 @@ class ChatAdapter(
         // Camera icon click listener (can be implemented later)
         holder.cameraIcon.setOnClickListener {
             // TODO: Implement camera functionality if needed
+            val intent = Intent(holder.itemView.context, NewChatImagePage::class.java)
+            intent.putExtra("recipientUid", chatPair.first)
+            holder.itemView.context.startActivity(intent)
         }
     }
 
