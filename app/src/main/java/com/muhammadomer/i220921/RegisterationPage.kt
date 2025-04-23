@@ -14,7 +14,10 @@ import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
 import retrofit2.http.POST
 import android.content.Context
+import com.google.gson.GsonBuilder
 import com.google.gson.annotations.SerializedName
+import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
 
 class RegisterationPage : AppCompatActivity() {
 
@@ -30,9 +33,16 @@ class RegisterationPage : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_registeration_page)
 
-        // Initialize Retrofit
+        // Initialize Retrofit with logging
+        val logging = HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BODY
+        }
+        val client = OkHttpClient.Builder()
+            .addInterceptor(logging)
+            .build()
         val retrofit = Retrofit.Builder()
-            .baseUrl("http://192.168.2.11/CONNECTME-API/api/") // Updated for physical device
+            .baseUrl("http://192.168.2.11/CONNECTME-API/api/")
+            .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
         apiService = retrofit.create(ApiService::class.java)
@@ -91,12 +101,28 @@ class RegisterationPage : AppCompatActivity() {
                         callback(false, null)
                     }
                 } else {
-                    Toast.makeText(this@RegisterationPage, "Error checking user", Toast.LENGTH_SHORT).show()
+                    // Handle non-2xx responses (e.g., 409)
+                    val errorBody = response.errorBody()?.string()
+                    if (errorBody != null) {
+                        try {
+                            val gson = GsonBuilder().create()
+                            val errorResponse = gson.fromJson(errorBody, CheckUserResponse::class.java)
+                            if (errorResponse?.status == "error") {
+                                callback(true, if (errorResponse.message?.contains("username", ignoreCase = true) == true) "username" else "email")
+                            } else {
+                                Toast.makeText(this@RegisterationPage, "Error checking user: ${errorResponse?.message ?: "Unknown error"}", Toast.LENGTH_LONG).show()
+                            }
+                        } catch (e: Exception) {
+                            Toast.makeText(this@RegisterationPage, "Error parsing response: $errorBody", Toast.LENGTH_LONG).show()
+                        }
+                    } else {
+                        Toast.makeText(this@RegisterationPage, "Error checking user: ${response.code()}", Toast.LENGTH_LONG).show()
+                    }
                 }
             }
 
             override fun onFailure(call: Call<CheckUserResponse>, t: Throwable) {
-                Toast.makeText(this@RegisterationPage, "Network error: ${t.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@RegisterationPage, "Network error: ${t.message}", Toast.LENGTH_LONG).show()
             }
         })
     }
@@ -108,14 +134,12 @@ class RegisterationPage : AppCompatActivity() {
                 if (response.isSuccessful) {
                     val result = response.body()
                     if (result?.status == "success") {
-                        // Store userId and token in SharedPreferences
                         val sharedPref = getSharedPreferences("ConnectMePrefs", Context.MODE_PRIVATE)
                         with(sharedPref.edit()) {
                             putString("userId", result.userId.toString())
                             putString("token", result.token)
                             apply()
                         }
-
                         Toast.makeText(this@RegisterationPage, "User Registered Successfully", Toast.LENGTH_SHORT).show()
                         clearFields()
                         val intent = Intent(this@RegisterationPage, EditProfilePage::class.java)
@@ -125,12 +149,13 @@ class RegisterationPage : AppCompatActivity() {
                         Toast.makeText(this@RegisterationPage, result?.message ?: "Registration failed", Toast.LENGTH_SHORT).show()
                     }
                 } else {
-                    Toast.makeText(this@RegisterationPage, "Error: ${response.message()}", Toast.LENGTH_SHORT).show()
+                    val errorBody = response.errorBody()?.string() ?: "No error body"
+                    Toast.makeText(this@RegisterationPage, "Error: ${response.code()} - $errorBody", Toast.LENGTH_LONG).show()
                 }
             }
 
             override fun onFailure(call: Call<RegisterResponse>, t: Throwable) {
-                Toast.makeText(this@RegisterationPage, "Network error: ${t.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@RegisterationPage, "Network error: ${t.message}", Toast.LENGTH_LONG).show()
             }
         })
     }
@@ -144,7 +169,6 @@ class RegisterationPage : AppCompatActivity() {
     }
 }
 
-// Retrofit API interface
 interface ApiService {
     @POST("check-user.php")
     fun checkUser(@Body request: CheckUserRequest): Call<CheckUserResponse>
@@ -153,7 +177,6 @@ interface ApiService {
     fun register(@Body request: RegisterRequest): Call<RegisterResponse>
 }
 
-// Data classes for API requests and responses
 data class CheckUserRequest(
     val username: String,
     val email: String
