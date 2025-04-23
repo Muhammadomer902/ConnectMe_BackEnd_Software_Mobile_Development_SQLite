@@ -6,8 +6,15 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.database.*
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import retrofit2.http.Body
+import retrofit2.http.POST
+import android.content.Context
+import com.google.gson.annotations.SerializedName
 
 class RegisterationPage : AppCompatActivity() {
 
@@ -17,17 +24,18 @@ class RegisterationPage : AppCompatActivity() {
     private lateinit var email: EditText
     private lateinit var password: EditText
     private lateinit var registerButton: Button
-
-    private lateinit var database: DatabaseReference
-    private lateinit var auth: FirebaseAuth
-
+    private lateinit var apiService: ApiService
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_registeration_page)
 
-        auth = FirebaseAuth.getInstance()
-        database = FirebaseDatabase.getInstance().getReference("RegisteredUsers")
+        // Initialize Retrofit
+        val retrofit = Retrofit.Builder()
+            .baseUrl("http://192.168.2.11/CONNECTME-API/api/") // Updated for physical device
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+        apiService = retrofit.create(ApiService::class.java)
 
         name = findViewById(R.id.Name)
         username = findViewById(R.id.Username)
@@ -40,7 +48,7 @@ class RegisterationPage : AppCompatActivity() {
             saveUserData()
         }
 
-        var logIn = findViewById<Button>(R.id.LogIn)
+        val logIn = findViewById<Button>(R.id.LogIn)
         logIn.setOnClickListener {
             val intent = Intent(this, LogInPage::class.java)
             startActivity(intent)
@@ -72,81 +80,59 @@ class RegisterationPage : AppCompatActivity() {
     }
 
     private fun checkIfUserExists(username: String, email: String, callback: (Boolean, String?) -> Unit) {
-        database.orderByChild("username").equalTo(username)
-            .addListenerForSingleValueEvent(object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    if (snapshot.exists()) {
-                        callback(true, "username")
+        val request = CheckUserRequest(username, email)
+        apiService.checkUser(request).enqueue(object : Callback<CheckUserResponse> {
+            override fun onResponse(call: Call<CheckUserResponse>, response: Response<CheckUserResponse>) {
+                if (response.isSuccessful) {
+                    val result = response.body()
+                    if (result?.status == "error") {
+                        callback(true, if (result.message?.contains("username", ignoreCase = true) == true) "username" else "email")
                     } else {
-                        database.orderByChild("email").equalTo(email)
-                            .addListenerForSingleValueEvent(object : ValueEventListener {
-                                override fun onDataChange(snapshot: DataSnapshot) {
-                                    if (snapshot.exists()) {
-                                        callback(true, "email")
-                                    } else {
-                                        callback(false, null)
-                                    }
-                                }
-
-                                override fun onCancelled(error: DatabaseError) {
-                                    Toast.makeText(this@RegisterationPage, "Error: ${error.message}", Toast.LENGTH_SHORT).show()
-                                }
-                            })
+                        callback(false, null)
                     }
+                } else {
+                    Toast.makeText(this@RegisterationPage, "Error checking user", Toast.LENGTH_SHORT).show()
                 }
+            }
 
-                override fun onCancelled(error: DatabaseError) {
-                    Toast.makeText(this@RegisterationPage, "Error: ${error.message}", Toast.LENGTH_SHORT).show()
-                }
-            })
+            override fun onFailure(call: Call<CheckUserResponse>, t: Throwable) {
+                Toast.makeText(this@RegisterationPage, "Network error: ${t.message}", Toast.LENGTH_SHORT).show()
+            }
+        })
     }
 
     private fun registerUser(name: String, username: String, phoneNumber: String, email: String, password: String) {
-        auth.createUserWithEmailAndPassword(email, password)
-            .addOnCompleteListener(this) { task ->
-                if (task.isSuccessful) {
-                    val userId = auth.currentUser?.uid // Use Firebase Auth UID instead of push().key
-                    if (userId != null) {
-                        val registerUser = userCredential(
-                            name = name,
-                            username = username,
-                            phoneNumber = phoneNumber,
-                            email = email,
-                            password = password,
-                            bio = "",
-                            profileImage = "",
-                            posts = emptyList(),
-                            followers = emptyList(),
-                            following = emptyList(),
-                            stories = emptyList(),           // Initialize stories
-                            pendingFollowRequests = emptyList(), // Initialize pendingFollowRequests
-                            recentSearches = emptyList(),     // Initialize recentSearches
-                            isOnline = true                   // Set user as online upon registration
-                        )
+        val request = RegisterRequest(name, username, phoneNumber, email, password)
+        apiService.register(request).enqueue(object : Callback<RegisterResponse> {
+            override fun onResponse(call: Call<RegisterResponse>, response: Response<RegisterResponse>) {
+                if (response.isSuccessful) {
+                    val result = response.body()
+                    if (result?.status == "success") {
+                        // Store userId and token in SharedPreferences
+                        val sharedPref = getSharedPreferences("ConnectMePrefs", Context.MODE_PRIVATE)
+                        with(sharedPref.edit()) {
+                            putString("userId", result.userId.toString())
+                            putString("token", result.token)
+                            apply()
+                        }
 
-                        // Set up onDisconnect to mark user as offline
-                        val userOnlineRef = database.child(userId).child("isOnline")
-                        userOnlineRef.setValue(true) // Set user as online
-                        userOnlineRef.onDisconnect().setValue(false) // Set to offline when disconnected
-
-                        database.child(userId).setValue(registerUser)
-                            .addOnSuccessListener {
-                                Toast.makeText(this, "User Registered Successfully", Toast.LENGTH_SHORT).show()
-                                clearFields()
-                                val intent = Intent(this, EditProfilePage::class.java) // No need for USER_ID extra
-                                startActivity(intent)
-                                finish()
-                            }
-                            .addOnFailureListener {
-                                Toast.makeText(this, "Failed to register user", Toast.LENGTH_SHORT).show()
-                            }
+                        Toast.makeText(this@RegisterationPage, "User Registered Successfully", Toast.LENGTH_SHORT).show()
+                        clearFields()
+                        val intent = Intent(this@RegisterationPage, EditProfilePage::class.java)
+                        startActivity(intent)
+                        finish()
                     } else {
-                        Toast.makeText(this, "Failed to get user ID", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@RegisterationPage, result?.message ?: "Registration failed", Toast.LENGTH_SHORT).show()
                     }
                 } else {
-                    Toast.makeText(this, "Authentication failed: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@RegisterationPage, "Error: ${response.message()}", Toast.LENGTH_SHORT).show()
                 }
             }
+
+            override fun onFailure(call: Call<RegisterResponse>, t: Throwable) {
+                Toast.makeText(this@RegisterationPage, "Network error: ${t.message}", Toast.LENGTH_SHORT).show()
+            }
+        })
     }
 
     private fun clearFields() {
@@ -157,3 +143,38 @@ class RegisterationPage : AppCompatActivity() {
         password.text.clear()
     }
 }
+
+// Retrofit API interface
+interface ApiService {
+    @POST("check-user.php")
+    fun checkUser(@Body request: CheckUserRequest): Call<CheckUserResponse>
+
+    @POST("register.php")
+    fun register(@Body request: RegisterRequest): Call<RegisterResponse>
+}
+
+// Data classes for API requests and responses
+data class CheckUserRequest(
+    val username: String,
+    val email: String
+)
+
+data class CheckUserResponse(
+    val status: String,
+    val message: String?
+)
+
+data class RegisterRequest(
+    val name: String,
+    val username: String,
+    @SerializedName("phoneNumber") val phoneNumber: String,
+    val email: String,
+    val password: String
+)
+
+data class RegisterResponse(
+    val status: String,
+    val message: String?,
+    val userId: Long?,
+    val token: String?
+)

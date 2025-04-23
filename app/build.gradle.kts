@@ -64,4 +64,8 @@ dependencies {
 
     implementation("io.agora.rtc:voice-sdk:4.3.0") // Check for the latest version
 
+    //Assignment # 3
+    implementation ("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation ("com.squareup.retrofit2:converter-gson:2.9.0")
+
 }
