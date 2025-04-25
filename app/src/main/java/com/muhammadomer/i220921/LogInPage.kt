@@ -53,8 +53,17 @@ class LogInPage : AppCompatActivity() {
         val token = sharedPref.getString("token", null)
 
         if (userId != null && token != null) {
-            // Fetch user data from API to update SQLite
-            fetchUserDataAndNavigate(userId, token)
+            // Try to load from SQLite first
+            val localUser = databaseHelper.getUserById(userId.toLong())
+            if (localUser != null) {
+                Toast.makeText(this, "Welcome back (offline mode)!", Toast.LENGTH_SHORT).show()
+                val intent = Intent(this, HomePage::class.java)
+                startActivity(intent)
+                finish()
+            } else {
+                // Fetch user data from API if no local data
+                fetchUserDataAndNavigate(userId, token)
+            }
         }
 
         // Initialize UI elements
@@ -108,6 +117,21 @@ class LogInPage : AppCompatActivity() {
                         val intent = Intent(this@LogInPage, HomePage::class.java)
                         startActivity(intent)
                         finish()
+                    } ?: run {
+                        // Handle null response body
+                        Toast.makeText(this@LogInPage, "Failed to fetch user data, trying local storage", Toast.LENGTH_LONG).show()
+                        val localUser = databaseHelper.getUserById(userId.toLong())
+                        if (localUser != null) {
+                            Toast.makeText(this@LogInPage, "Welcome back (offline mode)!", Toast.LENGTH_SHORT).show()
+                            val intent = Intent(this@LogInPage, HomePage::class.java)
+                            startActivity(intent)
+                            finish()
+                        } else {
+                            Toast.makeText(this@LogInPage, "No local data available, please log in again", Toast.LENGTH_LONG).show()
+                            // Clear SharedPreferences to force re-login
+                            val sharedPref = getSharedPreferences("ConnectMePrefs", MODE_PRIVATE)
+                            sharedPref.edit().clear().apply()
+                        }
                     }
                 } else {
                     // API failed, try to load from SQLite
@@ -154,7 +178,7 @@ class LogInPage : AppCompatActivity() {
                     val result = response.body()
                     if (result?.status == "success" && result.email != null) {
                         // Step 2: Authenticate using email and password
-                        loginWithEmail(result.email, password)
+                        loginWithEmail(result.email, password, username)
                     } else {
                         // Handle server error response
                         val errorMessage = result?.message ?: "User does not exist"
@@ -175,7 +199,7 @@ class LogInPage : AppCompatActivity() {
         })
     }
 
-    private fun loginWithEmail(email: String, password: String) {
+    private fun loginWithEmail(email: String, password: String, username: String) {
         apiService.login(email, password).enqueue(object : Callback<RegisterResponse> {
             override fun onResponse(call: Call<RegisterResponse>, response: Response<RegisterResponse>) {
                 if (response.isSuccessful) {
@@ -196,11 +220,11 @@ class LogInPage : AppCompatActivity() {
                                     val user = response.body()
                                     user?.let {
                                         val localUser = LocalUser(
-                                            userId = result.userId!!,
+                                            userId = result.userId!!.toLong(),
                                             name = it.name ?: "",
-                                            username = it.username ?: "",
+                                            username = it.username ?: username,
                                             phoneNumber = it.phoneNumber ?: "",
-                                            email = it.email ?: "",
+                                            email = it.email ?: email,
                                             bio = it.bio,
                                             profileImage = it.profileImage,
                                             postsCount = it.postsCount ?: 0,
@@ -208,7 +232,39 @@ class LogInPage : AppCompatActivity() {
                                             followingCount = it.followingCount ?: 0
                                         )
                                         databaseHelper.insertOrUpdateUser(localUser)
+                                    } ?: run {
+                                        // Cache minimal user data if API response is null
+                                        val localUser = LocalUser(
+                                            userId = result.userId!!.toLong(),
+                                            name = "",
+                                            username = username,
+                                            phoneNumber = "",
+                                            email = email,
+                                            bio = null,
+                                            profileImage = null,
+                                            postsCount = 0,
+                                            followersCount = 0,
+                                            followingCount = 0
+                                        )
+                                        databaseHelper.insertOrUpdateUser(localUser)
+                                        Toast.makeText(this@LogInPage, "Failed to fetch user data, using minimal data", Toast.LENGTH_LONG).show()
                                     }
+                                } else {
+                                    // Cache minimal user data if API call fails
+                                    val localUser = LocalUser(
+                                        userId = result.userId!!.toLong(),
+                                        name = "",
+                                        username = username,
+                                        phoneNumber = "",
+                                        email = email,
+                                        bio = null,
+                                        profileImage = null,
+                                        postsCount = 0,
+                                        followersCount = 0,
+                                        followingCount = 0
+                                    )
+                                    databaseHelper.insertOrUpdateUser(localUser)
+                                    Toast.makeText(this@LogInPage, "Failed to fetch user data: ${response.message()}", Toast.LENGTH_LONG).show()
                                 }
                                 // Navigate to HomePage regardless of user data fetch success
                                 Toast.makeText(this@LogInPage, "Login successful", Toast.LENGTH_SHORT).show()
@@ -218,8 +274,23 @@ class LogInPage : AppCompatActivity() {
                             }
 
                             override fun onFailure(call: Call<UserResponse>, t: Throwable) {
+                                // Cache minimal user data if API call fails
+                                val localUser = LocalUser(
+                                    userId = result.userId!!.toLong(),
+                                    name = "",
+                                    username = username,
+                                    phoneNumber = "",
+                                    email = email,
+                                    bio = null,
+                                    profileImage = null,
+                                    postsCount = 0,
+                                    followersCount = 0,
+                                    followingCount = 0
+                                )
+                                databaseHelper.insertOrUpdateUser(localUser)
+                                Toast.makeText(this@LogInPage, "Network error fetching user data: ${t.message}", Toast.LENGTH_LONG).show()
                                 // Navigate to HomePage even if user data fetch fails
-                                Toast.makeText(this@LogInPage, "Login successful, but failed to fetch user data: ${t.message}", Toast.LENGTH_LONG).show()
+                                Toast.makeText(this@LogInPage, "Login successful, user data not fully cached", Toast.LENGTH_SHORT).show()
                                 val intent = Intent(this@LogInPage, HomePage::class.java)
                                 startActivity(intent)
                                 finish()
