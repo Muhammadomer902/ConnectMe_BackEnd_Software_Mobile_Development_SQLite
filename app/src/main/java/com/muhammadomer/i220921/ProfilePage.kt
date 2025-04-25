@@ -1,211 +1,213 @@
 package com.muhammadomer.i220921
 
 import android.content.Intent
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Bundle
-import android.util.Base64
-import android.widget.*
+import android.util.Log
+import android.widget.Button
+import android.widget.ImageButton
+import android.widget.TextView
 import android.widget.Toast
-import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.database.*
 import de.hdodenhof.circleimageview.CircleImageView
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import okhttp3.logging.HttpLoggingInterceptor
+import okhttp3.OkHttpClient
+import java.net.URL
 
 class ProfilePage : AppCompatActivity() {
-    private lateinit var auth: FirebaseAuth
-    private lateinit var database: DatabaseReference
+
+    private lateinit var profileImage: CircleImageView
+    private lateinit var nameTextView: TextView
+    private lateinit var bioTextView: TextView
+    private lateinit var postNumTextView: TextView
+    private lateinit var followerButton: Button
+    private lateinit var followingButton: Button
+    private lateinit var editProfileButton: Button
+    private lateinit var logoutButton: Button
+    private lateinit var postRecyclerView: RecyclerView
     private lateinit var postAdapter: ProfilePostAdapter
+
+    private lateinit var apiService: ApiService
+    private var userId: String? = null
+    private var token: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
         setContentView(R.layout.activity_profile_page)
 
-        auth = FirebaseAuth.getInstance()
-        database = FirebaseDatabase.getInstance().getReference("RegisteredUsers")
-        val userId = auth.currentUser?.uid ?: return
+        // Initialize Retrofit
+        val logging = HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BODY
+        }
+        val client = OkHttpClient.Builder()
+            .addInterceptor(logging)
+            .build()
+        val retrofit = Retrofit.Builder()
+            .baseUrl("http://192.168.2.11/CONNECTME-API/api/")
+            .client(client)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+        apiService = retrofit.create(ApiService::class.java)
 
-        // Set up RecyclerView with 3 columns
-        val recyclerView = findViewById<RecyclerView>(R.id.postRecyclerView)
-        recyclerView.layoutManager = GridLayoutManager(this, 3)
+        // Get userId and token from SharedPreferences
+        val sharedPref = getSharedPreferences("ConnectMePrefs", MODE_PRIVATE)
+        userId = sharedPref.getString("userId", null)
+        token = sharedPref.getString("token", null)
+
+        if (userId == null || token == null) {
+            Toast.makeText(this, "User not authenticated", Toast.LENGTH_SHORT).show()
+            navigateToLogin()
+            return
+        }
+
+        Log.d("ProfilePage", "UserId: $userId, Token: $token")
+
+        // Initialize UI elements
+        profileImage = findViewById(R.id.ProfilePic)
+        nameTextView = findViewById(R.id.Name)
+        bioTextView = findViewById(R.id.Bio)
+        postNumTextView = findViewById(R.id.PostNum)
+        followerButton = findViewById(R.id.Follower)
+        followingButton = findViewById(R.id.Following)
+        editProfileButton = findViewById(R.id.EditProfile)
+        logoutButton = findViewById(R.id.LogoutButton)
+        postRecyclerView = findViewById(R.id.postRecyclerView)
+
+        // Set up RecyclerView
         postAdapter = ProfilePostAdapter()
-        recyclerView.adapter = postAdapter
+        postRecyclerView.layoutManager = GridLayoutManager(this, 3) // 3 columns for a grid layout
+        postRecyclerView.adapter = postAdapter
 
-        // Load profile picture, bio, name, counts, and posts
-        database.child(userId).addListenerForSingleValueEvent(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                val user = snapshot.getValue(userCredential::class.java)
-                user?.let {
-                    // Load profile picture into CircleImageView
-                    if (it.profileImage?.isNotEmpty() == true) {
-                        try {
-                            val decodedImage = Base64.decode(it.profileImage, Base64.DEFAULT)
-                            val bitmap = BitmapFactory.decodeByteArray(decodedImage, 0, decodedImage.size)
-                            findViewById<CircleImageView>(R.id.ProfilePic).setImageBitmap(bitmap)
-                        } catch (e: Exception) {
-                            Toast.makeText(this@ProfilePage, "Failed to load profile picture", Toast.LENGTH_SHORT).show()
-                        }
-                    }
+        // Load user data and posts
+        loadUserData()
+        loadUserPosts()
 
-                    // Load bio if it exists
-                    if (it.bio?.isNotEmpty() == true) {
-                        findViewById<TextView>(R.id.Bio).text = it.bio
-                    }
-
-                    // Load name if it exists
-                    if (it.name?.isNotEmpty() == true) {
-                        findViewById<TextView>(R.id.Name).text = it.name
-                    }
-
-                    // Load post count (0 if empty or null)
-                    findViewById<TextView>(R.id.PostNum).text = (it.posts?.size ?: 0).toString()
-
-                    // Load followers count (0 if empty or null)
-                    findViewById<Button>(R.id.Follower).text = (it.followers?.size ?: 0).toString()
-
-                    // Load following count (0 if empty or null)
-                    findViewById<Button>(R.id.Following).text = (it.following?.size ?: 0).toString()
-
-                    // Load and sort posts
-                    val postsRef = FirebaseDatabase.getInstance().getReference("Posts")
-                    val postList = mutableListOf<Post>()
-
-                    // Add 7 dummy posts with imageUrls (list of Base64 strings)
-//                    val dummyImageBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==" // 1x1 red pixel
-//                    postList.add(Post(
-//                        postId = "dummy1",
-//                        imageUrls = listOf(dummyImageBase64),
-//                        caption = "Dummy Post 1",
-//                        timestamp = System.currentTimeMillis() - 1000
-//                    ))
-//                    postList.add(Post(
-//                        postId = "dummy2",
-//                        imageUrls = listOf(dummyImageBase64),
-//                        caption = "Dummy Post 2",
-//                        timestamp = System.currentTimeMillis() - 2000
-//                    ))
-//                    postList.add(Post(
-//                        postId = "dummy3",
-//                        imageUrls = listOf(dummyImageBase64),
-//                        caption = "Dummy Post 3",
-//                        timestamp = System.currentTimeMillis() - 3000
-//                    ))
-//                    postList.add(Post(
-//                        postId = "dummy4",
-//                        imageUrls = listOf(dummyImageBase64),
-//                        caption = "Dummy Post 4",
-//                        timestamp = System.currentTimeMillis() - 4000
-//                    ))
-//                    postList.add(Post(
-//                        postId = "dummy5",
-//                        imageUrls = listOf(dummyImageBase64),
-//                        caption = "Dummy Post 5",
-//                        timestamp = System.currentTimeMillis() - 5000
-//                    ))
-//                    postList.add(Post(
-//                        postId = "dummy6",
-//                        imageUrls = listOf(dummyImageBase64),
-//                        caption = "Dummy Post 6",
-//                        timestamp = System.currentTimeMillis() - 6000
-//                    ))
-//                    postList.add(Post(
-//                        postId = "dummy7",
-//                        imageUrls = listOf(dummyImageBase64),
-//                        caption = "Dummy Post 7",
-//                        timestamp = System.currentTimeMillis() - 7000
-//                    ))
-
-                    // Fetch real posts from Firebase
-                    it.posts?.forEach { postId ->
-                        postsRef.child(postId).addListenerForSingleValueEvent(object : ValueEventListener {
-                            override fun onDataChange(postSnapshot: DataSnapshot) {
-                                val post = postSnapshot.getValue(Post::class.java)
-                                post?.let { p ->
-                                    postList.add(p)
-                                    // Sort by timestamp descending (latest first)
-                                    postList.sortByDescending { it.timestamp }
-                                    postAdapter.submitPosts(postList)
-                                }
-                            }
-
-                            override fun onCancelled(error: DatabaseError) {
-                                Toast.makeText(this@ProfilePage, "Failed to load post: ${error.message}", Toast.LENGTH_SHORT).show()
-                            }
-                        })
-                    }
-
-                    // If no real posts, submit dummy posts immediately
-                    if (it.posts.isNullOrEmpty()) {
-                        postList.sortByDescending { it.timestamp }
-                        postAdapter.submitPosts(postList)
-                    }
-                }
-            }
-
-            override fun onCancelled(error: DatabaseError) {
-                Toast.makeText(this@ProfilePage, "Failed to load profile data: ${error.message}", Toast.LENGTH_SHORT).show()
-            }
-        })
-
-        // Rest of the button listeners remain unchanged...
-        var editProfile = findViewById<Button>(R.id.EditProfile)
-        editProfile.setOnClickListener {
+        // Set click listeners
+        editProfileButton.setOnClickListener {
             val intent = Intent(this, EditProfilePage::class.java)
             startActivity(intent)
         }
 
-        var home = findViewById<Button>(R.id.Home)
-        home.setOnClickListener {
-            val intent = Intent(this, HomePage::class.java)
-            startActivity(intent)
+        logoutButton.setOnClickListener {
+            // Clear SharedPreferences and navigate to login
+            val editor = sharedPref.edit()
+            editor.clear()
+            editor.apply()
+            Toast.makeText(this, "Logged out successfully", Toast.LENGTH_SHORT).show()
+            navigateToLogin()
         }
 
-        var search = findViewById<Button>(R.id.Search)
-        search.setOnClickListener {
-            val intent = Intent(this, SearchPage::class.java)
-            startActivity(intent)
+        // Bottom navigation bar click listeners (placeholders)
+        findViewById<Button>(R.id.Home).setOnClickListener {
+            // Navigate to HomePage
+            Toast.makeText(this, "Navigate to Home", Toast.LENGTH_SHORT).show()
         }
 
-        var newPost = findViewById<ImageButton>(R.id.NewPost)
-        newPost as ImageButton
-        newPost.setOnClickListener {
-            val intent = Intent(this, NewPostPage::class.java)
-            startActivity(intent)
+        findViewById<Button>(R.id.Search).setOnClickListener {
+            // Navigate to SearchPage
+            Toast.makeText(this, "Navigate to Search", Toast.LENGTH_SHORT).show()
         }
 
-        var myBtn = findViewById<Button>(R.id.myBtn)
-        myBtn.setOnClickListener {
-            val intent = Intent(this, ProfilePage::class.java)
-            startActivity(intent)
+        findViewById<ImageButton>(R.id.NewPost).setOnClickListener {
+            // Navigate to NewPostPage
+            Toast.makeText(this, "Navigate to New Post", Toast.LENGTH_SHORT).show()
         }
 
-        var contact = findViewById<Button>(R.id.Contact)
-        contact.setOnClickListener {
-            val intent = Intent(this, ContactPage::class.java)
-            startActivity(intent)
+        findViewById<Button>(R.id.myBtn).setOnClickListener {
+            // Already on ProfilePage, refresh or do nothing
+            Toast.makeText(this, "Already on Profile", Toast.LENGTH_SHORT).show()
         }
 
-        var follower = findViewById<Button>(R.id.Follower)
-        follower.setOnClickListener {
-            val intent = Intent(this, FollowerPage::class.java)
-            startActivity(intent)
+        findViewById<Button>(R.id.Contact).setOnClickListener {
+            // Navigate to ContactPage
+            Toast.makeText(this, "Navigate to Contact", Toast.LENGTH_SHORT).show()
         }
+    }
 
-        var following = findViewById<Button>(R.id.Following)
-        following.setOnClickListener {
-            val intent = Intent(this, FollowingPage::class.java)
-            startActivity(intent)
-        }
+    private fun loadUserData() {
+        apiService.getUser(userId!!, "Bearer $token").enqueue(object : Callback<UserResponse> {
+            override fun onResponse(call: Call<UserResponse>, response: Response<UserResponse>) {
+                if (response.isSuccessful) {
+                    val user = response.body()
+                    user?.let {
+                        // Update UI with user data
+                        nameTextView.text = it.name ?: "Unknown"
+                        bioTextView.text = it.bio.takeIf { b -> b?.isNotEmpty() == true } ?: "No bio available"
+                        postNumTextView.text = (it.postsCount ?: 0).toString()
+                        followerButton.text = (it.followersCount ?: 0).toString()
+                        followingButton.text = (it.followingCount ?: 0).toString()
 
-        var logout = findViewById<Button>(R.id.LogoutButton)
-        logout.setOnClickListener {
-            auth.signOut()
-            val intent = Intent(this, LogInPage::class.java)
-            startActivity(intent)
-            finish()
-        }
+                        // Load profile image using Bitmap
+                        if (!it.profileImage.isNullOrEmpty()) {
+                            Thread {
+                                try {
+                                    val url = URL(it.profileImage)
+                                    val bitmap = BitmapFactory.decodeStream(url.openStream())
+                                    runOnUiThread {
+                                        profileImage.setImageBitmap(bitmap)
+                                    }
+                                } catch (e: Exception) {
+                                    runOnUiThread {
+                                        Toast.makeText(this@ProfilePage, "Failed to load profile image", Toast.LENGTH_SHORT).show()
+                                        profileImage.setImageResource(R.drawable.dummyprofilepic)
+                                    }
+                                }
+                            }.start()
+                        } else {
+                            profileImage.setImageResource(R.drawable.dummyprofilepic)
+                        }
+                    }
+                } else {
+                    val errorBody = response.errorBody()?.string() ?: "No error body"
+                    Log.e("ProfilePage", "Failed to load user data: ${response.code()} - ${response.message()} - $errorBody")
+                    Toast.makeText(this@ProfilePage, "Failed to load user data: ${response.message()}", Toast.LENGTH_LONG).show()
+                }
+            }
+
+            override fun onFailure(call: Call<UserResponse>, t: Throwable) {
+                Log.e("ProfilePage", "Network error: ${t.message}")
+                Toast.makeText(this@ProfilePage, "Network error: ${t.message}", Toast.LENGTH_SHORT).show()
+            }
+        })
+    }
+
+    private fun loadUserPosts() {
+        apiService.getPosts(userId!!, "Bearer $token").enqueue(object : Callback<PostsResponse> {
+            override fun onResponse(call: Call<PostsResponse>, response: Response<PostsResponse>) {
+                if (response.isSuccessful) {
+                    val postsResponse = response.body()
+                    if (postsResponse?.status == "success") {
+                        val posts = postsResponse.posts
+                        postAdapter.submitPosts(posts)
+                    } else {
+                        Toast.makeText(this@ProfilePage, postsResponse?.message ?: "Failed to load posts", Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    val errorBody = response.errorBody()?.string() ?: "No error body"
+                    Log.e("ProfilePage", "Failed to load posts: ${response.code()} - ${response.message()} - $errorBody")
+                    Toast.makeText(this@ProfilePage, "Failed to load posts: ${response.message()}", Toast.LENGTH_LONG).show()
+                }
+            }
+
+            override fun onFailure(call: Call<PostsResponse>, t: Throwable) {
+                Log.e("ProfilePage", "Network error: ${t.message}")
+                Toast.makeText(this@ProfilePage, "Network error: ${t.message}", Toast.LENGTH_SHORT).show()
+            }
+        })
+    }
+
+    private fun navigateToLogin() {
+        val intent = Intent(this, LogInPage::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        startActivity(intent)
+        finish()
     }
 }

@@ -2,15 +2,18 @@ package com.muhammadomer.i220921
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.util.Base64
+import android.os.Handler
+import android.os.Looper
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import androidx.recyclerview.widget.RecyclerView
+import java.net.URL
 
 class ProfilePostAdapter : RecyclerView.Adapter<ProfilePostAdapter.PostViewHolder>() {
     private val postList = mutableListOf<Post>()
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     // Submit a new list of posts and notify the adapter of the change
     fun submitPosts(newPosts: List<Post>) {
@@ -37,7 +40,7 @@ class ProfilePostAdapter : RecyclerView.Adapter<ProfilePostAdapter.PostViewHolde
 
     override fun getItemCount(): Int = postList.size
 
-    class PostViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+    inner class PostViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val postImage: ImageView = itemView.findViewById(R.id.postImage)
         private var currentBitmap: Bitmap? = null // Track the current Bitmap for recycling
 
@@ -48,20 +51,25 @@ class ProfilePostAdapter : RecyclerView.Adapter<ProfilePostAdapter.PostViewHolde
             postImage.setImageBitmap(null)
 
             // Get the first image from imageUrls (if available)
-            val firstImageBase64 = post.imageUrls?.firstOrNull()
-            if (firstImageBase64 != null) {
-                try {
-                    // Decode the Base64 string into a Bitmap
-                    val decodedImage = Base64.decode(firstImageBase64, Base64.DEFAULT)
-                    val bitmap = BitmapFactory.decodeByteArray(decodedImage, 0, decodedImage.size)
-                    // Resize the Bitmap to reduce memory usage
-                    val resizedBitmap = resizeBitmap(bitmap, 300, 300)
-                    currentBitmap = resizedBitmap
-                    postImage.setImageBitmap(resizedBitmap)
-                } catch (e: Exception) {
-                    // Handle invalid Base64 string or other errors
-                    postImage.setImageResource(android.R.drawable.ic_menu_gallery) // Fallback image
-                }
+            val firstImageUrl = post.imageUrls?.firstOrNull()
+            if (!firstImageUrl.isNullOrEmpty()) {
+                // Load image from URL in a background thread
+                Thread {
+                    try {
+                        val url = URL(firstImageUrl)
+                        val bitmap = BitmapFactory.decodeStream(url.openStream())
+                        // Resize the Bitmap to reduce memory usage
+                        val resizedBitmap = resizeBitmap(bitmap, 300, 300)
+                        currentBitmap = resizedBitmap
+                        mainHandler.post {
+                            postImage.setImageBitmap(resizedBitmap)
+                        }
+                    } catch (e: Exception) {
+                        mainHandler.post {
+                            postImage.setImageResource(android.R.drawable.ic_menu_gallery) // Fallback image
+                        }
+                    }
+                }.start()
             } else {
                 // No image available
                 postImage.setImageResource(android.R.drawable.ic_menu_gallery) // Fallback image

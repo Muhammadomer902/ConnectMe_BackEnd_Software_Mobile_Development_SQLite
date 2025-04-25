@@ -40,4 +40,11 @@ interface ApiService {
         @Header("Authorization") authToken: String,
         @Body request: UpdateUserRequest
     ): Call<UpdateUserResponse>
+
+    // New endpoint for fetching posts
+    @GET("posts.php")
+    fun getPosts(
+        @Query("userId") userId: String,
+        @Header("Authorization") authToken: String
+    ): Call<PostsResponse>
 }

@@ -31,13 +31,16 @@ data class RegisterResponse(
 // From EditProfilePage.kt
 data class UserResponse(
     val status: String,
-    val message: String?,
+    val message: String,
     val name: String?,
     val username: String?,
     val phoneNumber: String?,
     val email: String?,
     val bio: String?,
-    val profileImage: String?
+    val profileImage: String?,
+    val postsCount: Int?,
+    val followersCount: Int?,
+    val followingCount: Int?
 )
 
 data class CheckUsernameResponse(
