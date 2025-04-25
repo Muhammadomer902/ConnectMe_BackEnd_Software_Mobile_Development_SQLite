@@ -1,5 +1,6 @@
 package com.muhammadomer.i220921
 
+import android.content.Context // Added import
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
@@ -11,11 +12,7 @@ import retrofit2.Callback
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import retrofit2.http.Body
-import retrofit2.http.POST
-import android.content.Context
 import com.google.gson.GsonBuilder
-import com.google.gson.annotations.SerializedName
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 
@@ -101,7 +98,6 @@ class RegisterationPage : AppCompatActivity() {
                         callback(false, null)
                     }
                 } else {
-                    // Handle non-2xx responses (e.g., 409)
                     val errorBody = response.errorBody()?.string()
                     if (errorBody != null) {
                         try {
@@ -134,7 +130,7 @@ class RegisterationPage : AppCompatActivity() {
                 if (response.isSuccessful) {
                     val result = response.body()
                     if (result?.status == "success") {
-                        val sharedPref = getSharedPreferences("ConnectMePrefs", Context.MODE_PRIVATE)
+                        val sharedPref = getSharedPreferences("ConnectMePrefs", MODE_PRIVATE)
                         with(sharedPref.edit()) {
                             putString("userId", result.userId.toString())
                             putString("token", result.token)
@@ -168,36 +164,3 @@ class RegisterationPage : AppCompatActivity() {
         password.text.clear()
     }
 }
-
-interface ApiService {
-    @POST("check-user.php")
-    fun checkUser(@Body request: CheckUserRequest): Call<CheckUserResponse>
-
-    @POST("register.php")
-    fun register(@Body request: RegisterRequest): Call<RegisterResponse>
-}
-
-data class CheckUserRequest(
-    val username: String,
-    val email: String
-)
-
-data class CheckUserResponse(
-    val status: String,
-    val message: String?
-)
-
-data class RegisterRequest(
-    val name: String,
-    val username: String,
-    @SerializedName("phoneNumber") val phoneNumber: String,
-    val email: String,
-    val password: String
-)
-
-data class RegisterResponse(
-    val status: String,
-    val message: String?,
-    val userId: Long?,
-    val token: String?
-)
