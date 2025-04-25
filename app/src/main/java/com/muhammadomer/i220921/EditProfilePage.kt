@@ -33,6 +33,7 @@ class EditProfilePage : AppCompatActivity() {
     private lateinit var usernameDisplay: TextView
 
     private lateinit var apiService: ApiService
+    private lateinit var databaseHelper: DatabaseHelper
     private var userId: String? = null
     private var token: String? = null
     private var profileImageUri: Uri? = null
@@ -63,6 +64,9 @@ class EditProfilePage : AppCompatActivity() {
             .addConverterFactory(GsonConverterFactory.create())
             .build()
         apiService = retrofit.create(ApiService::class.java)
+
+        // Initialize DatabaseHelper
+        databaseHelper = DatabaseHelper(this)
 
         val sharedPref = getSharedPreferences("ConnectMePrefs", MODE_PRIVATE)
         userId = sharedPref.getString("userId", null)
@@ -96,17 +100,20 @@ class EditProfilePage : AppCompatActivity() {
     }
 
     private fun loadUserData(userId: String) {
+        // Try to load from API first
         apiService.getUser(userId, "Bearer $token").enqueue(object : Callback<UserResponse> {
             override fun onResponse(call: Call<UserResponse>, response: Response<UserResponse>) {
                 if (response.isSuccessful) {
                     val user = response.body()
                     user?.let {
+                        // Update UI
                         name.setHint(it.name ?: "")
                         username.setHint(it.username ?: "")
                         contact.setHint(it.phoneNumber ?: "")
                         bio.setHint(it.bio.takeIf { b -> b?.isNotEmpty() == true } ?: "write your bio...")
                         usernameDisplay.text = it.name ?: ""
 
+                        // Load profile image
                         if (!it.profileImage.isNullOrEmpty()) {
                             Thread {
                                 try {
@@ -122,19 +129,66 @@ class EditProfilePage : AppCompatActivity() {
                                 }
                             }.start()
                         }
+
+                        // Update SQLite with API data
+                        val localUser = LocalUser(
+                            userId = userId.toLong(),
+                            name = it.name ?: "",
+                            username = it.username ?: "",
+                            phoneNumber = it.phoneNumber ?: "",
+                            email = it.email ?: "",
+                            bio = it.bio,
+                            profileImage = it.profileImage,
+                            postsCount = it.postsCount ?: 0,
+                            followersCount = it.followersCount ?: 0,
+                            followingCount = it.followingCount ?: 0
+                        )
+                        databaseHelper.insertOrUpdateUser(localUser)
                     }
                 } else {
+                    // API failed, try to load from SQLite
                     val errorBody = response.errorBody()?.string() ?: "No error body"
                     Log.e("EditProfilePage", "Failed to load data: ${response.code()} - ${response.message()} - $errorBody")
-                    Toast.makeText(this@EditProfilePage, "Failed to load data: ${response.message()} - $errorBody", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@EditProfilePage, "Failed to load data from API, trying local storage: ${response.message()}", Toast.LENGTH_LONG).show()
+                    loadFromSQLite(userId.toLong())
                 }
             }
 
             override fun onFailure(call: Call<UserResponse>, t: Throwable) {
                 Log.e("EditProfilePage", "Network error: ${t.message}")
-                Toast.makeText(this@EditProfilePage, "Network error: ${t.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@EditProfilePage, "Network error, trying local storage: ${t.message}", Toast.LENGTH_SHORT).show()
+                loadFromSQLite(userId.toLong())
             }
         })
+    }
+
+    private fun loadFromSQLite(userId: Long) {
+        val localUser = databaseHelper.getUserById(userId)
+        if (localUser != null) {
+            name.setHint(localUser.name)
+            username.setHint(localUser.username)
+            contact.setHint(localUser.phoneNumber)
+            bio.setHint(localUser.bio.takeIf { b -> b?.isNotEmpty() == true } ?: "write your bio...")
+            usernameDisplay.text = localUser.name
+
+            if (!localUser.profileImage.isNullOrEmpty()) {
+                Thread {
+                    try {
+                        val url = java.net.URL(localUser.profileImage)
+                        val bitmap = BitmapFactory.decodeStream(url.openStream())
+                        runOnUiThread {
+                            profileImage.setImageBitmap(bitmap)
+                        }
+                    } catch (e: Exception) {
+                        runOnUiThread {
+                            Toast.makeText(this@EditProfilePage, "Failed to load image from local data", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }.start()
+            }
+        } else {
+            Toast.makeText(this@EditProfilePage, "No local data available", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun openImagePicker() {
@@ -210,7 +264,7 @@ class EditProfilePage : AppCompatActivity() {
         updatedUsername: String,
         updatedContact: String,
         updatedBio: String?,
-        currentProfileImage: String? // Keep as String? to retain null if no image exists
+        currentProfileImage: String?
     ) {
         if (profileImageUri == null) {
             performUpdate(userId, updatedName, updatedUsername, updatedContact, updatedBio, currentProfileImage)
@@ -274,6 +328,21 @@ class EditProfilePage : AppCompatActivity() {
                 if (response.isSuccessful) {
                     val result = response.body()
                     if (result?.status == "success") {
+                        // Update SQLite with the new data
+                        val localUser = LocalUser(
+                            userId = userId.toLong(),
+                            name = updatedName,
+                            username = updatedUsername,
+                            phoneNumber = updatedContact,
+                            email = "", // Email not updated here, fetch from SQLite or API if needed
+                            bio = updatedBio,
+                            profileImage = profileImageUrl,
+                            postsCount = 0, // Fetch from SQLite or API if needed
+                            followersCount = 0,
+                            followingCount = 0
+                        )
+                        databaseHelper.insertOrUpdateUser(localUser)
+
                         Toast.makeText(this@EditProfilePage, "Profile updated successfully", Toast.LENGTH_SHORT).show()
                         val intent = Intent(this@EditProfilePage, ProfilePage::class.java)
                         startActivity(intent)

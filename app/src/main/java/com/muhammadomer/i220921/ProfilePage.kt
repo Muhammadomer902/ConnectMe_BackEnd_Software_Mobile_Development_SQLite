@@ -36,6 +36,7 @@ class ProfilePage : AppCompatActivity() {
     private lateinit var postAdapter: ProfilePostAdapter
 
     private lateinit var apiService: ApiService
+    private lateinit var databaseHelper: DatabaseHelper
     private var userId: String? = null
     private var token: String? = null
 
@@ -56,6 +57,9 @@ class ProfilePage : AppCompatActivity() {
             .addConverterFactory(GsonConverterFactory.create())
             .build()
         apiService = retrofit.create(ApiService::class.java)
+
+        // Initialize DatabaseHelper
+        databaseHelper = DatabaseHelper(this)
 
         // Get userId and token from SharedPreferences
         val sharedPref = getSharedPreferences("ConnectMePrefs", MODE_PRIVATE)
@@ -97,7 +101,8 @@ class ProfilePage : AppCompatActivity() {
         }
 
         logoutButton.setOnClickListener {
-            // Clear SharedPreferences and navigate to login
+            // Clear SharedPreferences and SQLite, then navigate to login
+            databaseHelper.clearUserData()
             val editor = sharedPref.edit()
             editor.clear()
             editor.apply()
@@ -133,6 +138,7 @@ class ProfilePage : AppCompatActivity() {
     }
 
     private fun loadUserData() {
+        // Try to load from API first
         apiService.getUser(userId!!, "Bearer $token").enqueue(object : Callback<UserResponse> {
             override fun onResponse(call: Call<UserResponse>, response: Response<UserResponse>) {
                 if (response.isSuccessful) {
@@ -140,7 +146,7 @@ class ProfilePage : AppCompatActivity() {
                     user?.let {
                         // Update UI with user data
                         nameTextView.text = it.name ?: "Unknown"
-                        bioTextView.text = it.bio.takeIf { b -> b?.isNotEmpty() == true } ?: "" // Display empty string if bio is null or empty
+                        bioTextView.text = it.bio.takeIf { b -> b?.isNotEmpty() == true } ?: ""
                         postNumTextView.text = (it.postsCount ?: 0).toString()
                         followerButton.text = (it.followersCount ?: 0).toString()
                         followingButton.text = (it.followingCount ?: 0).toString()
@@ -164,19 +170,68 @@ class ProfilePage : AppCompatActivity() {
                         } else {
                             profileImage.setImageResource(R.drawable.dummyprofilepic)
                         }
+
+                        // Update SQLite with API data
+                        val localUser = LocalUser(
+                            userId = userId!!.toLong(),
+                            name = it.name ?: "",
+                            username = it.username ?: "",
+                            phoneNumber = it.phoneNumber ?: "",
+                            email = it.email ?: "",
+                            bio = it.bio,
+                            profileImage = it.profileImage,
+                            postsCount = it.postsCount ?: 0,
+                            followersCount = it.followersCount ?: 0,
+                            followingCount = it.followingCount ?: 0
+                        )
+                        databaseHelper.insertOrUpdateUser(localUser)
                     }
                 } else {
                     val errorBody = response.errorBody()?.string() ?: "No error body"
                     Log.e("ProfilePage", "Failed to load user data: ${response.code()} - ${response.message()} - $errorBody")
-                    Toast.makeText(this@ProfilePage, "Failed to load user data: ${response.message()}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@ProfilePage, "Failed to load user data from API, trying local storage: ${response.message()}", Toast.LENGTH_LONG).show()
+                    loadUserDataFromSQLite()
                 }
             }
 
             override fun onFailure(call: Call<UserResponse>, t: Throwable) {
                 Log.e("ProfilePage", "Network error: ${t.message}")
-                Toast.makeText(this@ProfilePage, "Network error: ${t.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@ProfilePage, "Network error, trying local storage: ${t.message}", Toast.LENGTH_SHORT).show()
+                loadUserDataFromSQLite()
             }
         })
+    }
+
+    private fun loadUserDataFromSQLite() {
+        val localUser = databaseHelper.getUserById(userId!!.toLong())
+        if (localUser != null) {
+            nameTextView.text = localUser.name
+            bioTextView.text = localUser.bio.takeIf { b -> b?.isNotEmpty() == true } ?: ""
+            postNumTextView.text = localUser.postsCount.toString()
+            followerButton.text = localUser.followersCount.toString()
+            followingButton.text = localUser.followingCount.toString()
+
+            if (!localUser.profileImage.isNullOrEmpty()) {
+                Thread {
+                    try {
+                        val url = URL(localUser.profileImage)
+                        val bitmap = BitmapFactory.decodeStream(url.openStream())
+                        runOnUiThread {
+                            profileImage.setImageBitmap(bitmap)
+                        }
+                    } catch (e: Exception) {
+                        runOnUiThread {
+                            Toast.makeText(this@ProfilePage, "Failed to load profile image from local data", Toast.LENGTH_SHORT).show()
+                            profileImage.setImageResource(R.drawable.dummyprofilepic)
+                        }
+                    }
+                }.start()
+            } else {
+                profileImage.setImageResource(R.drawable.dummyprofilepic)
+            }
+        } else {
+            Toast.makeText(this@ProfilePage, "No local user data available", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun loadUserPosts() {

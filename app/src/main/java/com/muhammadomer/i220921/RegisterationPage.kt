@@ -1,6 +1,5 @@
 package com.muhammadomer.i220921
 
-import android.content.Context // Added import
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
@@ -25,6 +24,7 @@ class RegisterationPage : AppCompatActivity() {
     private lateinit var password: EditText
     private lateinit var registerButton: Button
     private lateinit var apiService: ApiService
+    private lateinit var databaseHelper: DatabaseHelper
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,6 +43,9 @@ class RegisterationPage : AppCompatActivity() {
             .addConverterFactory(GsonConverterFactory.create())
             .build()
         apiService = retrofit.create(ApiService::class.java)
+
+        // Initialize DatabaseHelper
+        databaseHelper = DatabaseHelper(this)
 
         name = findViewById(R.id.Name)
         username = findViewById(R.id.Username)
@@ -136,6 +139,22 @@ class RegisterationPage : AppCompatActivity() {
                             putString("token", result.token)
                             apply()
                         }
+
+                        // Store user data in SQLite
+                        val user = LocalUser(
+                            userId = result.userId ?: 0L,
+                            name = name,
+                            username = username,
+                            phoneNumber = phoneNumber,
+                            email = email,
+                            bio = null,
+                            profileImage = null,
+                            postsCount = 0,
+                            followersCount = 0,
+                            followingCount = 0
+                        )
+                        databaseHelper.insertOrUpdateUser(user)
+
                         Toast.makeText(this@RegisterationPage, "User Registered Successfully", Toast.LENGTH_SHORT).show()
                         clearFields()
                         val intent = Intent(this@RegisterationPage, EditProfilePage::class.java)
