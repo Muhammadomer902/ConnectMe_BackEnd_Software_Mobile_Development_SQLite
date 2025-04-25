@@ -28,6 +28,13 @@ data class RegisterResponse(
     val token: String?
 )
 
+// From LogInPage.kt
+data class UserEmailResponse(
+    val status: String,
+    val message: String?,
+    val email: String?
+)
+
 // From EditProfilePage.kt
 data class UserResponse(
     val status: String,

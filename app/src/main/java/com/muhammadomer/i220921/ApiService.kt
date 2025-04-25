@@ -12,6 +12,19 @@ interface ApiService {
     @POST("register.php")
     fun register(@Body request: RegisterRequest): Call<RegisterResponse>
 
+    // New endpoint for login
+    @POST("login.php")
+    fun login(
+        @Query("email") email: String,
+        @Query("password") password: String
+    ): Call<RegisterResponse>
+
+    // New endpoint to fetch email by username
+    @GET("get-email-by-username.php")
+    fun getEmailByUsername(
+        @Query("username") username: String
+    ): Call<UserEmailResponse>
+
     // From EditProfilePage.kt
     @GET("user.php")
     fun getUser(
