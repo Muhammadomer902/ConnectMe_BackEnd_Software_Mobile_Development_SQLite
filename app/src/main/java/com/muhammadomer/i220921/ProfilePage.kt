@@ -140,7 +140,7 @@ class ProfilePage : AppCompatActivity() {
                     user?.let {
                         // Update UI with user data
                         nameTextView.text = it.name ?: "Unknown"
-                        bioTextView.text = it.bio.takeIf { b -> b?.isNotEmpty() == true } ?: "No bio available"
+                        bioTextView.text = it.bio.takeIf { b -> b?.isNotEmpty() == true } ?: "" // Display empty string if bio is null or empty
                         postNumTextView.text = (it.postsCount ?: 0).toString()
                         followerButton.text = (it.followersCount ?: 0).toString()
                         followingButton.text = (it.followingCount ?: 0).toString()

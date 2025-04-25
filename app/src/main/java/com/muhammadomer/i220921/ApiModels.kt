@@ -59,7 +59,7 @@ data class UpdateUserRequest(
     val name: String,
     val username: String,
     val phoneNumber: String,
-    val bio: String,
+    val bio: String?, // Changed to String? to allow null
     val profileImage: String
 )
 

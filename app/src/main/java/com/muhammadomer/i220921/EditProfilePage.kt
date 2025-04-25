@@ -172,13 +172,16 @@ class EditProfilePage : AppCompatActivity() {
                 if (response.isSuccessful) {
                     val user = response.body()
                     user?.let {
-                        val updatedName = name.text.toString().trim().ifEmpty { it.name ?: "" }
-                        val updatedUsernameInput = username.text.toString().trim()
-                        val updatedUsername = if (updatedUsernameInput.isNotEmpty()) updatedUsernameInput else it.username ?: ""
-                        val updatedContact = contact.text.toString().trim().ifEmpty { it.phoneNumber ?: "" }
-                        val updatedBio = bio.text.toString().trim().ifEmpty { it.bio ?: "" }
+                        val nameInput = name.text.toString().trim()
+                        val updatedName = if (nameInput.isNotEmpty()) nameInput else it.name ?: ""
+                        val usernameInput = username.text.toString().trim()
+                        val updatedUsername = if (usernameInput.isNotEmpty()) usernameInput else it.username ?: ""
+                        val contactInput = contact.text.toString().trim()
+                        val updatedContact = if (contactInput.isNotEmpty()) contactInput else it.phoneNumber ?: ""
+                        val bioInput = bio.text.toString().trim()
+                        val updatedBio = if (bioInput.isEmpty()) it.bio else bioInput
 
-                        if (updatedUsername != it.username && updatedUsername.isNotEmpty()) {
+                        if (updatedUsername != it.username && usernameInput.isNotEmpty()) {
                             checkUsernameUnique(updatedUsername, userId) { isUnique ->
                                 if (!isUnique) {
                                     Toast.makeText(this@EditProfilePage, "Username already taken", Toast.LENGTH_SHORT).show()
@@ -206,11 +209,11 @@ class EditProfilePage : AppCompatActivity() {
         updatedName: String,
         updatedUsername: String,
         updatedContact: String,
-        updatedBio: String,
-        currentProfileImage: String?
+        updatedBio: String?,
+        currentProfileImage: String? // Keep as String? to retain null if no image exists
     ) {
         if (profileImageUri == null) {
-            performUpdate(userId, updatedName, updatedUsername, updatedContact, updatedBio, currentProfileImage ?: "")
+            performUpdate(userId, updatedName, updatedUsername, updatedContact, updatedBio, currentProfileImage)
             return
         }
 
@@ -255,15 +258,15 @@ class EditProfilePage : AppCompatActivity() {
         updatedName: String,
         updatedUsername: String,
         updatedContact: String,
-        updatedBio: String,
-        profileImageUrl: String
+        updatedBio: String?,
+        profileImageUrl: String?
     ) {
         val updateRequest = UpdateUserRequest(
             name = updatedName,
             username = updatedUsername,
             phoneNumber = updatedContact,
             bio = updatedBio,
-            profileImage = profileImageUrl
+            profileImage = profileImageUrl ?: ""
         )
 
         apiService.updateUser(userId, "Bearer $token", updateRequest).enqueue(object : Callback<UpdateUserResponse> {
@@ -284,6 +287,7 @@ class EditProfilePage : AppCompatActivity() {
             }
 
             override fun onFailure(call: Call<UpdateUserResponse>, t: Throwable) {
+                Log.e("EditProfilePage", "Network error: ${t.message}")
                 Toast.makeText(this@EditProfilePage, "Network error: ${t.message}", Toast.LENGTH_SHORT).show()
             }
         })
