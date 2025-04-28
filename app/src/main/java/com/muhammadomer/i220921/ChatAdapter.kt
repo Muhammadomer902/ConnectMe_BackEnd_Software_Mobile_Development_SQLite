@@ -1,18 +1,17 @@
 package com.muhammadomer.i220921
 
 import android.content.Intent
-import android.graphics.BitmapFactory
-import android.util.Base64
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 import de.hdodenhof.circleimageview.CircleImageView
 
 class ChatAdapter(
-    private val chats: MutableList<Pair<String, userCredential>>,
+    private val chats: MutableList<Chat>,
     private val onChatClick: (String) -> Unit
 ) : RecyclerView.Adapter<ChatAdapter.ViewHolder>() {
 
@@ -29,34 +28,28 @@ class ChatAdapter(
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val chatPair = chats[position]
-        val user = chatPair.second // Get the userCredential
+        val chat = chats[position]
+        val user = chat.otherUser
 
         holder.usernameTextView.text = user.username
 
-        // Load profile picture
-        if (user.profileImage.isNotEmpty()) {
-            try {
-                val decodedImage = Base64.decode(user.profileImage, Base64.DEFAULT)
-                val bitmap = BitmapFactory.decodeByteArray(decodedImage, 0, decodedImage.size)
-                holder.profilePic.setImageBitmap(bitmap)
-            } catch (e: Exception) {
-                holder.profilePic.setImageResource(R.drawable.dummyprofilepic)
-            }
+        if (user.profileImage != null && user.profileImage.isNotEmpty()) {
+            Glide.with(holder.itemView.context)
+                .load(user.profileImage)
+                .placeholder(R.drawable.dummyprofilepic)
+                .error(R.drawable.dummyprofilepic)
+                .into(holder.profilePic)
         } else {
             holder.profilePic.setImageResource(R.drawable.dummyprofilepic)
         }
 
-        // Click listener to open chat
         holder.itemView.setOnClickListener {
-            onChatClick(chatPair.first) // Pass the other user's UID
+            onChatClick(user.userId)
         }
 
-        // Camera icon click listener (can be implemented later)
         holder.cameraIcon.setOnClickListener {
-            // TODO: Implement camera functionality if needed
             val intent = Intent(holder.itemView.context, NewChatImagePage::class.java)
-            intent.putExtra("recipientUid", chatPair.first)
+            intent.putExtra("recipientId", user.userId)
             holder.itemView.context.startActivity(intent)
         }
     }

@@ -4,11 +4,9 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.os.Bundle
 import android.provider.MediaStore
-import android.util.Base64
 import android.view.View
 import android.widget.Button
 import android.widget.ImageView
@@ -21,9 +19,19 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import androidx.exifinterface.media.ExifInterface
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.database.*
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import okhttp3.logging.HttpLoggingInterceptor
+import okhttp3.OkHttpClient
 import java.io.ByteArrayOutputStream
+import java.io.File
+import java.util.UUID
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -36,11 +44,13 @@ class NewChatImagePage : AppCompatActivity() {
     private var selectedBitmap: Bitmap? = null
     private var imageCapture: ImageCapture? = null
     private lateinit var cameraExecutor: ExecutorService
-    private lateinit var auth: FirebaseAuth
-    private lateinit var database: DatabaseReference
-    private var recipientUid: String? = null
+    private lateinit var apiService: ApiService
+    private lateinit var databaseHelper: DatabaseHelper
+    private var userId: String? = null
+    private var token: String? = null
+    private var recipientId: String? = null
+    private var chatId: String = ""
 
-    // Permission launcher
     private val permissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
         if (isGranted) {
             startCamera()
@@ -50,14 +60,11 @@ class NewChatImagePage : AppCompatActivity() {
         }
     }
 
-    // Gallery launcher
     private val galleryLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let {
-            // Get the Bitmap from the URI
             val bitmap = MediaStore.Images.Media.getBitmap(contentResolver, it)
-            selectedBitmap?.recycle() // Recycle the previous Bitmap if it exists
+            selectedBitmap?.recycle()
 
-            // Get the correct orientation from EXIF data and rotate the Bitmap
             val inputStream = contentResolver.openInputStream(uri)
             val exif = inputStream?.let { ExifInterface(it) }
             val orientation = exif?.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
@@ -69,7 +76,6 @@ class NewChatImagePage : AppCompatActivity() {
             }
             inputStream?.close()
 
-            // Rotate the Bitmap if needed
             val rotatedBitmap = if (rotationDegrees != 0f) {
                 rotateBitmap(bitmap, rotationDegrees)
             } else {
@@ -77,7 +83,6 @@ class NewChatImagePage : AppCompatActivity() {
             }
 
             selectedBitmap = rotatedBitmap
-            // Set the image as the full-screen background
             fullScreenImage.setImageBitmap(rotatedBitmap)
             fullScreenImage.visibility = View.VISIBLE
             clickPicture.visibility = View.VISIBLE
@@ -90,18 +95,42 @@ class NewChatImagePage : AppCompatActivity() {
         enableEdgeToEdge()
         setContentView(R.layout.activity_new_chat_image_page)
 
-        // Initialize Firebase Auth and Database
-        auth = FirebaseAuth.getInstance()
-        database = FirebaseDatabase.getInstance().getReference()
-        val userId = auth.currentUser?.uid ?: return
+        val logging = HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BODY
+        }
+        val client = OkHttpClient.Builder()
+            .addInterceptor(logging)
+            .build()
+        val retrofit = Retrofit.Builder()
+            .baseUrl("http://192.168.2.11/CONNECTME-API/api/")
+            .client(client)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+        apiService = retrofit.create(ApiService::class.java)
 
-        // Get the recipientUid from the Intent
-        recipientUid = intent.getStringExtra("recipientUid")
-        if (recipientUid == null) {
+        databaseHelper = DatabaseHelper(this)
+
+        val sharedPref = getSharedPreferences("ConnectMePrefs", MODE_PRIVATE)
+        userId = sharedPref.getString("userId", null)
+        token = sharedPref.getString("token", null)
+
+        if (userId == null || token == null) {
+            Toast.makeText(this, "User not authenticated", Toast.LENGTH_SHORT).show()
+            val intent = Intent(this, LogInPage::class.java)
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            startActivity(intent)
+            finish()
+            return
+        }
+
+        recipientId = intent.getStringExtra("recipientId")
+        if (recipientId == null) {
             Toast.makeText(this, "Error: No recipient selected", Toast.LENGTH_SHORT).show()
             finish()
             return
         }
+
+        chatId = if (userId!! < recipientId!!) "$userId-$recipientId" else "$recipientId-$userId"
 
         cameraPreview = findViewById(R.id.cameraPreview)
         clickPicture = findViewById(R.id.ClickPicture)
@@ -147,41 +176,7 @@ class NewChatImagePage : AppCompatActivity() {
         val finalizePost = findViewById<Button>(R.id.FinalizePost)
         finalizePost.setOnClickListener {
             if (selectedBitmap != null) {
-                // Convert the bitmap to a Base64 string
-                val bitmapString = bitmapToBase64(selectedBitmap!!)
-
-                // Create a new message with the image
-                val messageId = database.child("Chat").push().key ?: return@setOnClickListener
-                val message = Message(
-                    messageId = messageId,
-                    text = "", // No text for image messages
-                    image = bitmapString, // Base64 string of the image
-                    senderId = userId,
-                    timestamp = System.currentTimeMillis(),
-                    isSeen = false,
-                    vanish = false // Assuming Vanish Mode is not used for image messages
-                )
-
-                // Save the message to both sender's and recipient's chat nodes
-                val senderChatRef = database.child("Chat").child(userId).child(recipientUid!!).child("messages").child(messageId)
-                val recipientChatRef = database.child("Chat").child(recipientUid!!).child(userId).child("messages").child(messageId)
-
-                // Save to sender's chat
-                senderChatRef.setValue(message).addOnSuccessListener {
-                    // Save to recipient's chat
-                    recipientChatRef.setValue(message).addOnSuccessListener {
-                        Toast.makeText(this, "Image sent successfully", Toast.LENGTH_SHORT).show()
-                        // Navigate to ChatPage
-                        val intent = Intent(this, ChatPage::class.java)
-                        intent.putExtra("recipientUid", recipientUid)
-                        startActivity(intent)
-                        finish()
-                    }.addOnFailureListener { error ->
-                        Toast.makeText(this, "Failed to send image to recipient: ${error.message}", Toast.LENGTH_SHORT).show()
-                    }
-                }.addOnFailureListener { error ->
-                    Toast.makeText(this, "Failed to send image: ${error.message}", Toast.LENGTH_SHORT).show()
-                }
+                uploadImageAndSendMessage()
             } else {
                 Toast.makeText(this, "Please capture or select an image first", Toast.LENGTH_SHORT).show()
             }
@@ -226,9 +221,8 @@ class NewChatImagePage : AppCompatActivity() {
             object : ImageCapture.OnImageCapturedCallback() {
                 override fun onCaptureSuccess(image: ImageProxy) {
                     val bitmap = image.toBitmap()
-                    selectedBitmap?.recycle() // Recycle the previous Bitmap if it exists
+                    selectedBitmap?.recycle()
 
-                    // Rotate the Bitmap based on the image's rotation degrees
                     val rotationDegrees = image.imageInfo.rotationDegrees.toFloat()
                     val rotatedBitmap = if (rotationDegrees != 0f) {
                         rotateBitmap(bitmap, rotationDegrees)
@@ -240,7 +234,6 @@ class NewChatImagePage : AppCompatActivity() {
                         }
                     }
 
-                    // If using the front camera, mirror the image to correct the default mirroring
                     val finalBitmap = if (isFrontCamera) {
                         mirrorBitmap(rotatedBitmap)
                     } else {
@@ -248,7 +241,6 @@ class NewChatImagePage : AppCompatActivity() {
                     }
 
                     selectedBitmap = finalBitmap
-                    // Set the image as the full-screen background
                     fullScreenImage.setImageBitmap(finalBitmap)
                     fullScreenImage.visibility = View.VISIBLE
                     clickPicture.visibility = View.VISIBLE
@@ -264,7 +256,108 @@ class NewChatImagePage : AppCompatActivity() {
         )
     }
 
-    // Utility to convert ImageProxy to Bitmap
+    private fun uploadImageAndSendMessage() {
+        val bitmap = selectedBitmap ?: return
+        val file = File.createTempFile("image_", ".jpg", cacheDir)
+        val outputStream = file.outputStream()
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 80, outputStream)
+        outputStream.close()
+
+        val requestBody = file.asRequestBody("image/jpeg".toMediaTypeOrNull())
+        val part = MultipartBody.Part.createFormData("image", file.name, requestBody)
+
+        apiService.uploadMessageImage(userId!!, "Bearer $token", part).enqueue(object : Callback<ImageUploadResponse> {
+            override fun onResponse(call: Call<ImageUploadResponse>, response: Response<ImageUploadResponse>) {
+                if (response.isSuccessful && response.body()?.status == "success") {
+                    val imageUrl = response.body()!!.imageUrl
+                    sendMessage(imageUrl)
+                    file.delete()
+                } else {
+                    queueImageMessage(file.path)
+                    file.delete()
+                }
+            }
+
+            override fun onFailure(call: Call<ImageUploadResponse>, t: Throwable) {
+                queueImageMessage(file.path)
+                file.delete()
+            }
+        })
+    }
+
+    private fun sendMessage(imageUrl: String) {
+        val messageId = UUID.randomUUID().toString()
+        val message = Message(
+            messageId = messageId,
+            chatId = chatId,
+            text = "",
+            imageUrl = imageUrl,
+            senderId = userId!!,
+            timestamp = System.currentTimeMillis(),
+            isSeen = false,
+            vanish = false
+        )
+        val request = SendMessageRequest(
+            text = "",
+            imageUrl = imageUrl,
+            senderId = userId!!,
+            timestamp = System.currentTimeMillis(),
+            isSeen = false,
+            vanish = false
+        )
+        apiService.sendMessage(chatId, "Bearer $token", request).enqueue(object : Callback<GenericResponse> {
+            override fun onResponse(call: Call<GenericResponse>, response: Response<GenericResponse>) {
+                if (response.isSuccessful && response.body()?.status == "success") {
+                    databaseHelper.insertOrUpdateMessage(
+                        LocalMessage(
+                            messageId = message.messageId,
+                            chatId = message.chatId,
+                            text = message.text,
+                            imageUrl = message.imageUrl,
+                            senderId = message.senderId.toLong(),
+                            timestamp = message.timestamp,
+                            isSeen = message.isSeen,
+                            vanish = message.vanish
+                        )
+                    )
+                    Toast.makeText(this@NewChatImagePage, "Image sent successfully", Toast.LENGTH_SHORT).show()
+                    val intent = Intent(this@NewChatImagePage, ChatPage::class.java)
+                    intent.putExtra("recipientId", recipientId)
+                    startActivity(intent)
+                    finish()
+                } else {
+                    queueMessage(message)
+                }
+            }
+
+            override fun onFailure(call: Call<GenericResponse>, t: Throwable) {
+                queueMessage(message)
+            }
+        })
+    }
+
+    private fun queueImageMessage(filePath: String) {
+        val action = QueuedAction(
+            actionId = UUID.randomUUID().toString(),
+            actionType = "send_image_message",
+            payload = Gson().toJson(mapOf("filePath" to filePath, "chatId" to chatId, "recipientId" to recipientId)),
+            createdAt = System.currentTimeMillis()
+        )
+        databaseHelper.queueAction(action)
+        Toast.makeText(this, "Image message queued for sending", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun queueMessage(message: Message) {
+        val action = QueuedAction(
+            actionId = UUID.randomUUID().toString(),
+            actionType = "send_message",
+            payload = Gson().toJson(message),
+            createdAt = System.currentTimeMillis()
+        )
+        databaseHelper.queueAction(action)
+        Toast.makeText(this, "Message queued for sending", Toast.LENGTH_SHORT).show()
+    }
+
     private fun ImageProxy.toBitmap(): Bitmap {
         val buffer = planes[0].buffer
         val bytes = ByteArray(buffer.remaining())
@@ -287,26 +380,16 @@ class NewChatImagePage : AppCompatActivity() {
         }
     }
 
-    // Utility to rotate a Bitmap
     private fun rotateBitmap(bitmap: Bitmap, degrees: Float): Bitmap {
         val matrix = Matrix()
         matrix.postRotate(degrees)
         return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
     }
 
-    // Utility to mirror a Bitmap (for front camera)
     private fun mirrorBitmap(bitmap: Bitmap): Bitmap {
         val matrix = Matrix()
-        matrix.postScale(-1f, 1f, bitmap.width / 2f, bitmap.height / 2f) // Mirror horizontally
+        matrix.postScale(-1f, 1f, bitmap.width / 2f, bitmap.height / 2f)
         return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
-    }
-
-    // Utility to convert Bitmap to Base64 string
-    private fun bitmapToBase64(bitmap: Bitmap): String {
-        val byteArrayOutputStream = ByteArrayOutputStream()
-        bitmap.compress(Bitmap.CompressFormat.JPEG, 80, byteArrayOutputStream)
-        val byteArray = byteArrayOutputStream.toByteArray()
-        return Base64.encodeToString(byteArray, Base64.DEFAULT)
     }
 
     override fun onDestroy() {

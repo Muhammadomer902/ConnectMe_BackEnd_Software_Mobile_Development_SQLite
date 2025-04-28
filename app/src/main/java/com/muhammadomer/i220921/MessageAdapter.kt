@@ -2,10 +2,7 @@ package com.muhammadomer.i220921
 
 import android.app.AlertDialog
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.text.format.DateUtils
-import android.util.Base64
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -13,15 +10,23 @@ import android.widget.EditText
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
-import com.google.firebase.database.FirebaseDatabase
+import com.bumptech.glide.Glide
 import de.hdodenhof.circleimageview.CircleImageView
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import okhttp3.logging.HttpLoggingInterceptor
+import okhttp3.OkHttpClient
+import java.util.UUID
 
 class MessageAdapter(
     private val context: Context,
     private val messages: MutableList<Message>,
     private val isVanishMode: Boolean,
     private val currentUserId: String,
-    private val recipientUid: String,
+    private val recipientId: String,
     private val recipientProfileBitmap: Bitmap? = null,
     private val onMessageUpdated: () -> Unit
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
@@ -30,15 +35,37 @@ class MessageAdapter(
         private const val VIEW_TYPE_USER = 1
         private const val VIEW_TYPE_OTHER = 2
         private const val VIEW_TYPE_VANISH_MESSAGE = 3
-        private const val EDIT_DELETE_WINDOW = 5 * 60 * 1000 // 5 minutes in milliseconds
+        private const val EDIT_DELETE_WINDOW = 5 * 60 * 1000 // 5 minutes
+    }
+
+    private lateinit var apiService: ApiService
+    private lateinit var databaseHelper: DatabaseHelper
+    private var token: String? = null
+
+    init {
+        val logging = HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BODY
+        }
+        val client = OkHttpClient.Builder()
+            .addInterceptor(logging)
+            .build()
+        val retrofit = Retrofit.Builder()
+            .baseUrl("http://192.168.2.11/CONNECTME-API/api/")
+            .client(client)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+        apiService = retrofit.create(ApiService::class.java)
+
+        databaseHelper = DatabaseHelper(context)
+
+        val sharedPref = context.getSharedPreferences("ConnectMePrefs", Context.MODE_PRIVATE)
+        token = sharedPref.getString("token", null)
     }
 
     override fun getItemViewType(position: Int): Int {
-        // If in Vanish Mode and at the last position, show the VanishMssg
         if (isVanishMode && position == messages.size) {
             return VIEW_TYPE_VANISH_MESSAGE
         }
-        // Otherwise, determine if it's a user or other message
         return if (messages[position].senderId == currentUserId) VIEW_TYPE_USER else VIEW_TYPE_OTHER
     }
 
@@ -68,34 +95,29 @@ class MessageAdapter(
                 val message = messages[position]
                 holder.bind(message)
                 holder.itemView.setOnLongClickListener {
-                    if (canEditOrDelete(message) && message.image.isEmpty()) { // Only allow edit/delete for text messages
+                    if (canEditOrDelete(message) && message.imageUrl == null) {
                         showEditDeleteDialog(message, position)
                     }
                     true
                 }
-                // Mark message as seen in Vanish Mode
-                if (isVanishMode && !message.isSeen) {
-                    message.isSeen = true
-                    updateMessageInFirebase(message)
+                if (isVanishMode && !message.isSeen && message.senderId != currentUserId) {
+                    markMessageAsSeen(message, position)
                 }
             }
             is OtherMessageViewHolder -> {
                 val message = messages[position]
-                holder.bind(message, recipientProfileBitmap)
-                // Mark message as seen in Vanish Mode
-                if (isVanishMode && !message.isSeen) {
-                    message.isSeen = true
-                    updateMessageInFirebase(message)
+                holder.bind(message)
+                if (isVanishMode && !message.isSeen && message.senderId != currentUserId) {
+                    markMessageAsSeen(message, position)
                 }
             }
             is VanishMessageViewHolder -> {
-                // No binding needed, the text is static in the layout
+                // Static text in layout
             }
         }
     }
 
     override fun getItemCount(): Int {
-        // Add 1 to the count if in Vanish Mode to account for the VanishMssg
         return if (isVanishMode) messages.size + 1 else messages.size
     }
 
@@ -110,8 +132,8 @@ class MessageAdapter(
             .setTitle("Message Options")
             .setItems(options) { _, which ->
                 when (which) {
-                    0 -> showEditDialog(message, position) // Edit
-                    1 -> deleteMessage(message, position) // Delete
+                    0 -> showEditDialog(message, position)
+                    1 -> deleteMessage(message, position)
                 }
             }
             .setNegativeButton("Cancel", null)
@@ -129,35 +151,102 @@ class MessageAdapter(
                 val newText = editText.text.toString().trim()
                 if (newText.isNotEmpty()) {
                     val updatedMessage = message.copy(text = newText)
-                    updateMessageInFirebase(updatedMessage)
-                    messages[position] = updatedMessage
-                    notifyItemChanged(position)
-                    onMessageUpdated()
+                    updateMessage(updatedMessage, position)
                 }
             }
             .setNegativeButton("Cancel", null)
             .show()
     }
 
-    private fun deleteMessage(message: Message, position: Int) {
-        val database = FirebaseDatabase.getInstance().reference
-        val chatPath1 = "Chat/$currentUserId/$recipientUid/messages/${message.messageId}"
-        val chatPath2 = "Chat/$recipientUid/$currentUserId/messages/${message.messageId}"
+    private fun updateMessage(message: Message, position: Int) {
+        val request = UpdateMessageRequest(text = message.text)
+        apiService.updateMessage(message.chatId, message.messageId, "Bearer $token", request).enqueue(object : Callback<GenericResponse> {
+            override fun onResponse(call: Call<GenericResponse>, response: Response<GenericResponse>) {
+                if (response.isSuccessful && response.body()?.status == "success") {
+                    messages[position] = message
+                    databaseHelper.insertOrUpdateMessage(
+                        LocalMessage(
+                            messageId = message.messageId,
+                            chatId = message.chatId,
+                            text = message.text,
+                            imageUrl = message.imageUrl,
+                            senderId = message.senderId.toLong(),
+                            timestamp = message.timestamp,
+                            isSeen = message.isSeen,
+                            vanish = message.vanish
+                        )
+                    )
+                    notifyItemChanged(position)
+                    onMessageUpdated()
+                } else {
+                    queueAction("update_message", Gson().toJson(mapOf("message" to message)))
+                }
+            }
 
-        database.child(chatPath1).removeValue()
-        database.child(chatPath2).removeValue()
-        messages.removeAt(position)
-        notifyItemRemoved(position)
-        onMessageUpdated()
+            override fun onFailure(call: Call<GenericResponse>, t: Throwable) {
+                queueAction("update_message", Gson().toJson(mapOf("message" to message)))
+            }
+        })
     }
 
-    private fun updateMessageInFirebase(message: Message) {
-        val database = FirebaseDatabase.getInstance().reference
-        val chatPath1 = "Chat/$currentUserId/$recipientUid/messages/${message.messageId}"
-        val chatPath2 = "Chat/$recipientUid/$currentUserId/messages/${message.messageId}"
+    private fun deleteMessage(message: Message, position: Int) {
+        apiService.deleteMessage(message.chatId, message.messageId, "Bearer $token").enqueue(object : Callback<GenericResponse> {
+            override fun onResponse(call: Call<GenericResponse>, response: Response<GenericResponse>) {
+                if (response.isSuccessful && response.body()?.status == "success") {
+                    messages.removeAt(position)
+                    databaseHelper.deleteMessage(message.messageId)
+                    notifyItemRemoved(position)
+                    onMessageUpdated()
+                } else {
+                    queueAction("delete_message", Gson().toJson(mapOf("messageId" to message.messageId, "chatId" to message.chatId)))
+                }
+            }
 
-        database.child(chatPath1).setValue(message)
-        database.child(chatPath2).setValue(message)
+            override fun onFailure(call: Call<GenericResponse>, t: Throwable) {
+                queueAction("delete_message", Gson().toJson(mapOf("messageId" to message.messageId, "chatId" to message.chatId)))
+            }
+        })
+    }
+
+    private fun markMessageAsSeen(message: Message, position: Int) {
+        val updatedMessage = message.copy(isSeen = true)
+        apiService.updateMessage(message.chatId, message.messageId, "Bearer $token", UpdateMessageRequest(message.text)).enqueue(object : Callback<GenericResponse> {
+            override fun onResponse(call: Call<GenericResponse>, response: Response<GenericResponse>) {
+                if (response.isSuccessful && response.body()?.status == "success") {
+                    messages[position] = updatedMessage
+                    databaseHelper.insertOrUpdateMessage(
+                        LocalMessage(
+                            messageId = updatedMessage.messageId,
+                            chatId = updatedMessage.chatId,
+                            text = updatedMessage.text,
+                            imageUrl = updatedMessage.imageUrl,
+                            senderId = updatedMessage.senderId.toLong(),
+                            timestamp = updatedMessage.timestamp,
+                            isSeen = updatedMessage.isSeen,
+                            vanish = updatedMessage.vanish
+                        )
+                    )
+                    notifyItemChanged(position)
+                    onMessageUpdated()
+                } else {
+                    queueAction("mark_message_seen", Gson().toJson(mapOf("message" to updatedMessage)))
+                }
+            }
+
+            override fun onFailure(call: Call<GenericResponse>, t: Throwable) {
+                queueAction("mark_message_seen", Gson().toJson(mapOf("message" to updatedMessage)))
+            }
+        })
+    }
+
+    private fun queueAction(actionType: String, payload: String) {
+        val action = QueuedAction(
+            actionId = UUID.randomUUID().toString(),
+            actionType = actionType,
+            payload = payload,
+            createdAt = System.currentTimeMillis()
+        )
+        databaseHelper.queueAction(action)
     }
 
     class UserMessageViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -166,23 +255,18 @@ class MessageAdapter(
         private val timestamp: TextView = itemView.findViewById(R.id.userMessageTimestamp)
 
         fun bind(message: Message) {
-            // Display text message
             if (message.text.isNotEmpty()) {
                 messageText.visibility = View.VISIBLE
                 messageText.text = message.text
                 messageImage.visibility = View.GONE
-            }
-            // Display image message
-            else if (message.image.isNotEmpty()) {
+            } else if (message.imageUrl != null && message.imageUrl.isNotEmpty()) {
                 messageText.visibility = View.GONE
                 messageImage.visibility = View.VISIBLE
-                try {
-                    val decodedImage = Base64.decode(message.image, Base64.DEFAULT)
-                    val bitmap = BitmapFactory.decodeByteArray(decodedImage, 0, decodedImage.size)
-                    messageImage.setImageBitmap(bitmap)
-                } catch (e: Exception) {
-                    messageImage.setImageResource(R.drawable.dummyprofilepic) // Use existing drawable
-                }
+                Glide.with(itemView.context)
+                    .load(message.imageUrl)
+                    .placeholder(R.drawable.dummyprofilepic)
+                    .error(R.drawable.dummyprofilepic)
+                    .into(messageImage)
             } else {
                 messageText.visibility = View.GONE
                 messageImage.visibility = View.GONE
@@ -202,24 +286,19 @@ class MessageAdapter(
         private val messageImage: ImageView = itemView.findViewById(R.id.otherMessageImage)
         private val timestamp: TextView = itemView.findViewById(R.id.otherMessageTimestamp)
 
-        fun bind(message: Message, profileBitmap: Bitmap?) {
-            // Display text message
+        fun bind(message: Message) {
             if (message.text.isNotEmpty()) {
                 messageText.visibility = View.VISIBLE
                 messageText.text = message.text
                 messageImage.visibility = View.GONE
-            }
-            // Display image message
-            else if (message.image.isNotEmpty()) {
+            } else if (message.imageUrl != null && message.imageUrl.isNotEmpty()) {
                 messageText.visibility = View.GONE
                 messageImage.visibility = View.VISIBLE
-                try {
-                    val decodedImage = Base64.decode(message.image, Base64.DEFAULT)
-                    val bitmap = BitmapFactory.decodeByteArray(decodedImage, 0, decodedImage.size)
-                    messageImage.setImageBitmap(bitmap)
-                } catch (e: Exception) {
-                    messageImage.setImageResource(R.drawable.dummyprofilepic) // Use existing drawable
-                }
+                Glide.with(itemView.context)
+                    .load(message.imageUrl)
+                    .placeholder(R.drawable.dummyprofilepic)
+                    .error(R.drawable.dummyprofilepic)
+                    .into(messageImage)
             } else {
                 messageText.visibility = View.GONE
                 messageImage.visibility = View.GONE
@@ -230,14 +309,11 @@ class MessageAdapter(
                 System.currentTimeMillis(),
                 DateUtils.MINUTE_IN_MILLIS
             )
-            // Set the profile picture if available
-            profileBitmap?.let {
-                profilePic.setImageBitmap(it)
-            }
+            // Profile picture is loaded in ChatPage
         }
     }
 
     class VanishMessageViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        // No additional binding needed, the text is static in the layout
+        // Static text in layout
     }
 }

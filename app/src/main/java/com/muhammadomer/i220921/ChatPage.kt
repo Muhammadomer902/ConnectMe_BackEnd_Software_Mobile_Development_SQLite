@@ -1,16 +1,12 @@
 package com.muhammadomer.i220921
 
 import android.content.Intent
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.os.Bundle
-import android.util.Base64
 import android.view.GestureDetector
 import android.view.MotionEvent
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageView
-import android.widget.RelativeLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
@@ -19,48 +15,80 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.database.*
+import com.bumptech.glide.Glide
 import de.hdodenhof.circleimageview.CircleImageView
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import okhttp3.logging.HttpLoggingInterceptor
+import okhttp3.OkHttpClient
+import java.util.UUID
 
 class ChatPage : AppCompatActivity() {
 
-    private lateinit var auth: FirebaseAuth
-    private lateinit var database: DatabaseReference
-    private var recipientUid: String = ""
+    private lateinit var apiService: ApiService
+    private lateinit var databaseHelper: DatabaseHelper
+    private var recipientId: String = ""
+    private var chatId: String = ""
+    private var userId: String? = null
+    private var token: String? = null
     private lateinit var messagesRecyclerView: RecyclerView
     private lateinit var messageAdapter: MessageAdapter
     private val messages = mutableListOf<Message>()
     private lateinit var messageInput: EditText
     private lateinit var sendButton: ImageView
-    private var recipientProfileBitmap: Bitmap? = null
     private lateinit var gestureDetector: GestureDetector
-    private var onlineStatusListener: ValueEventListener? = null // To remove the listener later
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_chat_page)
 
-        // Handle system bar insets for edge-to-edge display
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { view, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             view.setPadding(systemBars.left, systemBars.top, systemBars.right, 0)
             insets
         }
 
-        // Initialize Firebase
-        auth = FirebaseAuth.getInstance()
-        database = FirebaseDatabase.getInstance().getReference()
+        val logging = HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BODY
+        }
+        val client = OkHttpClient.Builder()
+            .addInterceptor(logging)
+            .build()
+        val retrofit = Retrofit.Builder()
+            .baseUrl("http://192.168.2.11/CONNECTME-API/api/")
+            .client(client)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+        apiService = retrofit.create(ApiService::class.java)
 
-        // Get recipient UID from Intent
-        recipientUid = intent.getStringExtra("recipientUid") ?: run {
-            Toast.makeText(this, "Recipient UID not provided", Toast.LENGTH_SHORT).show()
+        databaseHelper = DatabaseHelper(this)
+
+        val sharedPref = getSharedPreferences("ConnectMePrefs", MODE_PRIVATE)
+        userId = sharedPref.getString("userId", null)
+        token = sharedPref.getString("token", null)
+
+        if (userId == null || token == null) {
+            Toast.makeText(this, "User not authenticated", Toast.LENGTH_SHORT).show()
+            val intent = Intent(this, LogInPage::class.java)
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            startActivity(intent)
             finish()
             return
         }
 
-        // Initialize RecyclerView
+        recipientId = intent.getStringExtra("recipientId") ?: run {
+            Toast.makeText(this, "Recipient ID not provided", Toast.LENGTH_SHORT).show()
+            finish()
+            return
+        }
+
+        // Generate chatId deterministically
+        chatId = if (userId!! < recipientId) "$userId-$recipientId" else "$recipientId-$userId"
+
         messagesRecyclerView = findViewById(R.id.messagesRecyclerView)
         messagesRecyclerView.layoutManager = LinearLayoutManager(this).apply {
             stackFromEnd = true
@@ -69,32 +97,28 @@ class ChatPage : AppCompatActivity() {
             this,
             messages,
             false,
-            auth.currentUser?.uid ?: "",
-            recipientUid,
-            recipientProfileBitmap
-        ) { fetchMessages() }
+            userId!!,
+            recipientId,
+            null,
+            { fetchMessages() }
+        )
         messagesRecyclerView.adapter = messageAdapter
 
-        // Load recipient's data (name, profile picture, and online status)
         loadRecipientData()
 
-        // Fetch messages from Firebase
         fetchMessages()
 
-        // Set up sending messages
         messageInput = findViewById(R.id.messageInput)
         sendButton = findViewById(R.id.sendButton)
         sendButton.setOnClickListener {
             val text = messageInput.text.toString().trim()
             if (text.isNotEmpty()) {
-                sendMessage(text)
+                sendMessage(text, false)
                 messageInput.text.clear()
-                // Scroll to the last message after sending
                 messagesRecyclerView.scrollToPosition(messages.size - 1)
             }
         }
 
-        // Set up swipe gesture for the entire screen using GestureDetector
         gestureDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
             override fun onFling(
                 e1: MotionEvent?,
@@ -108,7 +132,7 @@ class ChatPage : AppCompatActivity() {
                 val swipeThreshold = 250f
                 if (Math.abs(diffY) > Math.abs(diffX) && diffY < 0 && Math.abs(diffY) > swipeThreshold) {
                     val intent = Intent(this@ChatPage, VanishingChatPage::class.java)
-                    intent.putExtra("recipientUid", recipientUid)
+                    intent.putExtra("recipientId", recipientId)
                     startActivity(intent)
                     return true
                 }
@@ -116,141 +140,237 @@ class ChatPage : AppCompatActivity() {
             }
         })
 
-        // Navigation buttons
         val back = findViewById<Button>(R.id.Back)
         back.setOnClickListener {
             val intent = Intent(this, DMPage::class.java)
             startActivity(intent)
+            finish()
         }
 
         val voiceCall = findViewById<Button>(R.id.VoiceCall)
         voiceCall.setOnClickListener {
             val intent = Intent(this, VoiceCallPage::class.java)
-            intent.putExtra("recipientUid", recipientUid)
+            intent.putExtra("recipientId", recipientId)
             startActivity(intent)
         }
 
         val videoCall = findViewById<Button>(R.id.VideoCall)
         videoCall.setOnClickListener {
             val intent = Intent(this, VideoCallPage::class.java)
+            intent.putExtra("recipientId", recipientId)
             startActivity(intent)
         }
 
         val profile = findViewById<Button>(R.id.Profile)
         profile.setOnClickListener {
             val intent = Intent(this, ProfilePage::class.java)
-            intent.putExtra("userId", recipientUid)
+            intent.putExtra("userId", recipientId)
             startActivity(intent)
         }
     }
 
     override fun dispatchTouchEvent(event: MotionEvent): Boolean {
-        // Process the touch event with GestureDetector
         if (gestureDetector.onTouchEvent(event)) {
-            return true // Consume the event if a swipe is detected
+            return true
         }
-        // Otherwise, let the event propagate to child views
         return super.dispatchTouchEvent(event)
     }
 
     private fun fetchMessages() {
-        val currentUserId = auth.currentUser?.uid ?: return
-        val chatPath = "Chat/$currentUserId/$recipientUid/messages"
-        database.child(chatPath).addValueEventListener(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                messages.clear()
-                for (data in snapshot.children) {
-                    val message = data.getValue(Message::class.java)?.copy(messageId = data.key ?: "")
-                    message?.let { messages.add(it) }
+        apiService.getMessages(chatId, "Bearer $token").enqueue(object : Callback<MessagesResponse> {
+            override fun onResponse(call: Call<MessagesResponse>, response: Response<MessagesResponse>) {
+                if (response.isSuccessful && response.body()?.status == "success") {
+                    messages.clear()
+                    messages.addAll(response.body()!!.messages)
+                    messages.forEach { message ->
+                        databaseHelper.insertOrUpdateMessage(
+                            LocalMessage(
+                                messageId = message.messageId,
+                                chatId = message.chatId,
+                                text = message.text,
+                                imageUrl = message.imageUrl,
+                                senderId = message.senderId.toLong(),
+                                timestamp = message.timestamp,
+                                isSeen = message.isSeen,
+                                vanish = message.vanish
+                            )
+                        )
+                    }
+                    messageAdapter.notifyDataSetChanged()
+                    messagesRecyclerView.scrollToPosition(messages.size - 1)
+                } else {
+                    loadMessagesFromSQLite()
                 }
-                messageAdapter.notifyDataSetChanged()
-                messagesRecyclerView.scrollToPosition(messages.size - 1)
             }
 
-            override fun onCancelled(error: DatabaseError) {
-                Toast.makeText(this@ChatPage, "Failed to load messages: ${error.message}", Toast.LENGTH_SHORT).show()
+            override fun onFailure(call: Call<MessagesResponse>, t: Throwable) {
+                loadMessagesFromSQLite()
             }
         })
     }
 
-    private fun sendMessage(text: String) {
-        val currentUserId = auth.currentUser?.uid ?: return
-        val messageId = database.push().key ?: return
+    private fun loadMessagesFromSQLite() {
+        val localMessages = databaseHelper.getMessagesByChatId(chatId)
+        messages.clear()
+        messages.addAll(localMessages.map { localMessage ->
+            Message(
+                messageId = localMessage.messageId,
+                chatId = localMessage.chatId,
+                text = localMessage.text,
+                imageUrl = localMessage.imageUrl,
+                senderId = localMessage.senderId.toString(),
+                timestamp = localMessage.timestamp,
+                isSeen = localMessage.isSeen,
+                vanish = localMessage.vanish
+            )
+        })
+        messageAdapter.notifyDataSetChanged()
+        messagesRecyclerView.scrollToPosition(messages.size - 1)
+    }
+
+    private fun sendMessage(text: String, vanish: Boolean) {
+        val messageId = UUID.randomUUID().toString()
         val message = Message(
             messageId = messageId,
+            chatId = chatId,
             text = text,
-            senderId = currentUserId,
+            imageUrl = null,
+            senderId = userId!!,
             timestamp = System.currentTimeMillis(),
-            vanish = false // Messages in ChatPage are not in Vanish Mode
+            isSeen = false,
+            vanish = vanish
         )
+        val request = SendMessageRequest(
+            text = text,
+            imageUrl = null,
+            senderId = userId!!,
+            timestamp = System.currentTimeMillis(),
+            isSeen = false,
+            vanish = vanish
+        )
+        apiService.sendMessage(chatId, "Bearer $token", request).enqueue(object : Callback<GenericResponse> {
+            override fun onResponse(call: Call<GenericResponse>, response: Response<GenericResponse>) {
+                if (response.isSuccessful && response.body()?.status == "success") {
+                    messages.add(message)
+                    databaseHelper.insertOrUpdateMessage(
+                        LocalMessage(
+                            messageId = message.messageId,
+                            chatId = message.chatId,
+                            text = message.text,
+                            imageUrl = message.imageUrl,
+                            senderId = message.senderId.toLong(),
+                            timestamp = message.timestamp,
+                            isSeen = message.isSeen,
+                            vanish = message.vanish
+                        )
+                    )
+                    messageAdapter.notifyDataSetChanged()
+                    messagesRecyclerView.scrollToPosition(messages.size - 1)
+                } else {
+                    queueMessage(message)
+                }
+            }
 
-        val chatPath1 = "Chat/$currentUserId/$recipientUid/messages/$messageId"
-        val chatPath2 = "Chat/$recipientUid/$currentUserId/messages/$messageId"
+            override fun onFailure(call: Call<GenericResponse>, t: Throwable) {
+                queueMessage(message)
+            }
+        })
+    }
 
-        database.child(chatPath1).setValue(message)
-        database.child(chatPath2).setValue(message)
+    private fun queueMessage(message: Message) {
+        val action = QueuedAction(
+            actionId = UUID.randomUUID().toString(),
+            actionType = "send_message",
+            payload = Gson().toJson(message),
+            createdAt = System.currentTimeMillis()
+        )
+        databaseHelper.queueAction(action)
+        Toast.makeText(this, "Message queued for sending", Toast.LENGTH_SHORT).show()
     }
 
     private fun loadRecipientData() {
-        val recipientRef = database.child("RegisteredUsers").child(recipientUid)
-        onlineStatusListener = object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                val recipient = snapshot.getValue(userCredential::class.java)
-                recipient?.let {
-                    // Update username
-                    findViewById<TextView>(R.id.Username).text = it.username
-
-                    // Update profile picture
+        apiService.getUser(recipientId, "Bearer $token").enqueue(object : Callback<UserResponse> {
+            override fun onResponse(call: Call<UserResponse>, response: Response<UserResponse>) {
+                if (response.isSuccessful && response.body()?.status == "success") {
+                    val user = response.body()!!.user
+                    findViewById<TextView>(R.id.Username).text = user.username
                     val profilePic = findViewById<CircleImageView>(R.id.ProfilePic)
-                    if (it.profileImage.isNotEmpty()) {
-                        try {
-                            val decodedImage = Base64.decode(it.profileImage, Base64.DEFAULT)
-                            val bitmap = BitmapFactory.decodeByteArray(decodedImage, 0, decodedImage.size)
-                            profilePic.setImageBitmap(bitmap)
-                            recipientProfileBitmap = bitmap
-                        } catch (e: Exception) {
-                            profilePic.setImageResource(R.drawable.chatprofilepicture1)
-                        }
+                    if (user.profileImage != null && user.profileImage.isNotEmpty()) {
+                        Glide.with(this@ChatPage)
+                            .load(user.profileImage)
+                            .placeholder(R.drawable.chatprofilepicture1)
+                            .error(R.drawable.chatprofilepicture1)
+                            .into(profilePic)
                     } else {
                         profilePic.setImageResource(R.drawable.chatprofilepicture1)
                     }
-                    // Update online status
+                    databaseHelper.insertOrUpdateUser(
+                        LocalUser(
+                            userId = user.userId.toLong(),
+                            name = user.name,
+                            username = user.username,
+                            phoneNumber = user.phoneNumber,
+                            email = user.email,
+                            bio = user.bio,
+                            profileImage = user.profileImage,
+                            postsCount = user.postsCount,
+                            followersCount = user.followersCount,
+                            followingCount = user.followingCount
+                        )
+                    )
+                    loadOnlineStatus()
+                } else {
+                    loadRecipientDataFromSQLite()
+                }
+            }
+
+            override fun onFailure(call: Call<UserResponse>, t: Throwable) {
+                loadRecipientDataFromSQLite()
+            }
+        })
+    }
+
+    private fun loadRecipientDataFromSQLite() {
+        val localUser = databaseHelper.getUserById(recipientId.toLong())
+        if (localUser != null) {
+            findViewById<TextView>(R.id.Username).text = localUser.username
+            val profilePic = findViewById<CircleImageView>(R.id.ProfilePic)
+            if (localUser.profileImage != null && localUser.profileImage.isNotEmpty()) {
+                Glide.with(this@ChatPage)
+                    .load(localUser.profileImage)
+                    .placeholder(R.drawable.chatprofilepicture1)
+                    .error(R.drawable.chatprofilepicture1)
+                    .into(profilePic)
+            } else {
+                profilePic.setImageResource(R.drawable.chatprofilepicture1)
+            }
+            // Online status not available offline
+            findViewById<TextView>(R.id.OnlineStatus).text = "Offline"
+            findViewById<TextView>(R.id.OnlineStatus).setTextColor(resources.getColor(android.R.color.darker_gray))
+        } else {
+            Toast.makeText(this, "Recipient data not available offline", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun loadOnlineStatus() {
+        apiService.getUserStatus(recipientId, "Bearer $token").enqueue(object : Callback<UserStatusResponse> {
+            override fun onResponse(call: Call<UserStatusResponse>, response: Response<UserStatusResponse>) {
+                if (response.isSuccessful && response.body()?.status == "success") {
                     val onlineStatusText = findViewById<TextView>(R.id.OnlineStatus)
-                    val isOnline = snapshot.child("isOnline").getValue(Boolean::class.java) ?: false
+                    val isOnline = response.body()!!.isOnline
                     onlineStatusText.text = if (isOnline) "Online" else "Offline"
                     onlineStatusText.setTextColor(
                         if (isOnline) resources.getColor(android.R.color.holo_green_dark)
                         else resources.getColor(android.R.color.darker_gray)
                     )
-
-                    // Update the message adapter with the new profile bitmap
-                    messageAdapter = MessageAdapter(
-                        this@ChatPage,
-                        messages,
-                        false,
-                        auth.currentUser?.uid ?: "",
-                        recipientUid,
-                        recipientProfileBitmap
-                    ) { fetchMessages() }
-                    messagesRecyclerView.adapter = messageAdapter
-                    fetchMessages()
-                } ?: run {
-                    Toast.makeText(this@ChatPage, "Recipient data not found", Toast.LENGTH_SHORT).show()
                 }
             }
 
-            override fun onCancelled(error: DatabaseError) {
-                Toast.makeText(this@ChatPage, "Failed to load recipient: ${error.message}", Toast.LENGTH_SHORT).show()
+            override fun onFailure(call: Call<UserStatusResponse>, t: Throwable) {
+                // Fallback to offline status
+                findViewById<TextView>(R.id.OnlineStatus).text = "Offline"
+                findViewById<TextView>(R.id.OnlineStatus).setTextColor(resources.getColor(android.R.color.darker_gray))
             }
-        }
-        recipientRef.addValueEventListener(onlineStatusListener!!)
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        // Remove the online status listener to prevent memory leaks
-        onlineStatusListener?.let {
-            database.child("RegisteredUsers").child(recipientUid).removeEventListener(it)
-        }
+        })
     }
 }

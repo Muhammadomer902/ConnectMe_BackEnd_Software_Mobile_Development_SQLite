@@ -131,6 +131,48 @@ interface ApiService {
         @Query("recipientId") recipientId: String,
         @Header("Authorization") authToken: String
     ): Call<GenericResponse>
+
+    @GET("messages.php")
+    fun getMessages(
+        @Query("chatId") chatId: String,
+        @Header("Authorization") authToken: String
+    ): Call<MessagesResponse>
+
+    @POST("send-message.php")
+    fun sendMessage(
+        @Query("chatId") chatId: String,
+        @Header("Authorization") authToken: String,
+        @Body request: SendMessageRequest
+    ): Call<GenericResponse>
+
+    @Multipart
+    @POST("upload-message-image.php")
+    fun uploadMessageImage(
+        @Query("userId") userId: String,
+        @Header("Authorization") authToken: String,
+        @Part image: MultipartBody.Part
+    ): Call<ImageUploadResponse>
+
+    @GET("user-status.php")
+    fun getUserStatus(
+        @Query("userId") userId: String,
+        @Header("Authorization") authToken: String
+    ): Call<UserStatusResponse>
+
+    @POST("update-message.php")
+    fun updateMessage(
+        @Query("chatId") chatId: String,
+        @Query("messageId") messageId: String,
+        @Header("Authorization") authToken: String,
+        @Body request: UpdateMessageRequest
+    ): Call<GenericResponse>
+
+    @POST("delete-message.php")
+    fun deleteMessage(
+        @Query("chatId") chatId: String,
+        @Query("messageId") messageId: String,
+        @Header("Authorization") authToken: String
+    ): Call<GenericResponse>
 }
 
 data class SearchUser(
@@ -230,4 +272,40 @@ data class ChatsResponse(
     val status: String,
     val message: String,
     val chats: List<Chat>
+)
+
+data class Message(
+    val messageId: String,
+    val chatId: String,
+    val text: String,
+    val imageUrl: String?,
+    val senderId: String,
+    val timestamp: Long,
+    val isSeen: Boolean,
+    val vanish: Boolean
+)
+
+data class MessagesResponse(
+    val status: String,
+    val message: String,
+    val messages: List<Message>
+)
+
+data class SendMessageRequest(
+    val text: String,
+    val imageUrl: String?,
+    val senderId: String,
+    val timestamp: Long,
+    val isSeen: Boolean,
+    val vanish: Boolean
+)
+
+data class UserStatusResponse(
+    val status: String,
+    val message: String,
+    val isOnline: Boolean
+)
+
+data class UpdateMessageRequest(
+    val text: String
 )
