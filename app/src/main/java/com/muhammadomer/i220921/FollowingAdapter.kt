@@ -1,17 +1,17 @@
 package com.muhammadomer.i220921
 
-import android.graphics.BitmapFactory
-import android.util.Base64
+import android.content.Intent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 import de.hdodenhof.circleimageview.CircleImageView
 
 class FollowingAdapter(
-    private val following: MutableList<Pair<String, userCredential>>
+    private val following: MutableList<User>
 ) : RecyclerView.Adapter<FollowingAdapter.ViewHolder>() {
 
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -27,27 +27,24 @@ class FollowingAdapter(
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val followingPair = following[position]
-        val followingUser = followingPair.second // Get the userCredential
+        val followingUser = following[position]
 
         holder.usernameTextView.text = followingUser.username
 
-        // Load profile picture
-        if (followingUser.profileImage.isNotEmpty()) {
-            try {
-                val decodedImage = Base64.decode(followingUser.profileImage, Base64.DEFAULT)
-                val bitmap = BitmapFactory.decodeByteArray(decodedImage, 0, decodedImage.size)
-                holder.profilePic.setImageBitmap(bitmap)
-            } catch (e: Exception) {
-                holder.profilePic.setImageResource(R.drawable.dummyprofilepic)
-            }
+        if (followingUser.profileImage != null && followingUser.profileImage.isNotEmpty()) {
+            Glide.with(holder.itemView.context)
+                .load(followingUser.profileImage)
+                .placeholder(R.drawable.dummyprofilepic)
+                .error(R.drawable.dummyprofilepic)
+                .into(holder.profilePic)
         } else {
             holder.profilePic.setImageResource(R.drawable.dummyprofilepic)
         }
 
-        // Message icon click listener (can be implemented later)
         holder.messageIcon.setOnClickListener {
-            // TODO: Navigate to chat page with followingPair.first (UID)
+            val intent = Intent(holder.itemView.context, ChatPage::class.java)
+            intent.putExtra("recipientUid", followingUser.userId)
+            holder.itemView.context.startActivity(intent)
         }
     }
 

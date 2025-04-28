@@ -44,6 +44,14 @@ data class LocalRecentSearch(
     val timestamp: Long
 )
 
+data class LocalChat(
+    val chatId: String,
+    val userId: Long,
+    val otherUserId: Long,
+    val lastMessage: String?,
+    val timestamp: Long
+)
+
 data class QueuedAction(
     val actionId: String,
     val actionType: String,
@@ -55,7 +63,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
 
     companion object {
         private const val DATABASE_NAME = "ConnectMe.db"
-        private const val DATABASE_VERSION = 3
+        private const val DATABASE_VERSION = 4
     }
 
     override fun onCreate(db: SQLiteDatabase) {
@@ -105,6 +113,17 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
             )
         """)
         db.execSQL("""
+            CREATE TABLE chats (
+                chat_id TEXT PRIMARY KEY,
+                user_id INTEGER,
+                other_user_id INTEGER,
+                last_message TEXT,
+                timestamp INTEGER,
+                FOREIGN KEY (user_id) REFERENCES users(user_id),
+                FOREIGN KEY (other_user_id) REFERENCES users(user_id)
+            )
+        """)
+        db.execSQL("""
             CREATE TABLE queued_actions (
                 action_id TEXT PRIMARY KEY,
                 action_type TEXT,
@@ -121,6 +140,9 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         }
         if (oldVersion < 3) {
             db.execSQL("CREATE TABLE stories (story_id TEXT PRIMARY KEY, user_id INTEGER, image_url TEXT, timestamp INTEGER, FOREIGN KEY (user_id) REFERENCES users(user_id))")
+        }
+        if (oldVersion < 4) {
+            db.execSQL("CREATE TABLE chats (chat_id TEXT PRIMARY KEY, user_id INTEGER, other_user_id INTEGER, last_message TEXT, timestamp INTEGER, FOREIGN KEY (user_id) REFERENCES users(user_id), FOREIGN KEY (other_user_id) REFERENCES users(user_id))")
         }
     }
 
@@ -292,6 +314,38 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         db.close()
     }
 
+    fun insertOrUpdateChat(chat: LocalChat) {
+        val db = writableDatabase
+        val values = ContentValues().apply {
+            put("chat_id", chat.chatId)
+            put("user_id", chat.userId)
+            put("other_user_id", chat.otherUserId)
+            put("last_message", chat.lastMessage)
+            put("timestamp", chat.timestamp)
+        }
+        db.replace("chats", null, values)
+        db.close()
+    }
+
+    fun getChatsByUserId(userId: Long): List<LocalChat> {
+        val db = readableDatabase
+        val cursor = db.query("chats", null, "user_id = ?", arrayOf(userId.toString()), null, null, "timestamp DESC")
+        val chats = mutableListOf<LocalChat>()
+        while (cursor.moveToNext()) {
+            chats.add(
+                LocalChat(
+                    chatId = cursor.getString(cursor.getColumnIndexOrThrow("chat_id")),
+                    userId = cursor.getLong(cursor.getColumnIndexOrThrow("user_id")),
+                    otherUserId = cursor.getLong(cursor.getColumnIndexOrThrow("other_user_id")),
+                    lastMessage = cursor.getString(cursor.getColumnIndexOrThrow("last_message")),
+                    timestamp = cursor.getLong(cursor.getColumnIndexOrThrow("timestamp"))
+                )
+            )
+        }
+        cursor.close()
+        return chats
+    }
+
     fun queueAction(action: QueuedAction) {
         val db = writableDatabase
         val values = ContentValues().apply {
@@ -328,6 +382,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         db.delete("posts", null, null)
         db.delete("stories", null, null)
         db.delete("recent_searches", null, null)
+        db.delete("chats", null, null)
         db.delete("queued_actions", null, null)
         db.close()
     }

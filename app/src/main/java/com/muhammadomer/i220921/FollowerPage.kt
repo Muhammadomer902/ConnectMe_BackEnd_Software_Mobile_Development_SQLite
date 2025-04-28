@@ -12,60 +12,69 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.database.*
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import okhttp3.logging.HttpLoggingInterceptor
+import okhttp3.OkHttpClient
 
 class FollowerPage : AppCompatActivity() {
-    private lateinit var auth: FirebaseAuth
-    private lateinit var database: DatabaseReference
+    private lateinit var apiService: ApiService
+    private lateinit var databaseHelper: DatabaseHelper
     private lateinit var followerAdapter: FollowerAdapter
-    private var allFollowers = mutableListOf<Pair<String, userCredential>>()
-    private var displayedFollowers = mutableListOf<Pair<String, userCredential>>()
+    private var allFollowers = mutableListOf<User>()
+    private var displayedFollowers = mutableListOf<User>()
+    private var userId: String? = null
+    private var token: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_follower_page)
 
-        // Handle system bar insets for edge-to-edge display
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { view, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             view.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
 
-        // Initialize Firebase
-        auth = FirebaseAuth.getInstance()
-        database = FirebaseDatabase.getInstance().getReference("RegisteredUsers")
-        val userId = auth.currentUser?.uid ?: return
+        val logging = HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BODY
+        }
+        val client = OkHttpClient.Builder()
+            .addInterceptor(logging)
+            .build()
+        val retrofit = Retrofit.Builder()
+            .baseUrl("http://192.168.2.11/CONNECTME-API/api/")
+            .client(client)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+        apiService = retrofit.create(ApiService::class.java)
 
-        // Set up RecyclerView for followers
+        databaseHelper = DatabaseHelper(this)
+
+        val sharedPref = getSharedPreferences("ConnectMePrefs", MODE_PRIVATE)
+        userId = sharedPref.getString("userId", null)
+        token = sharedPref.getString("token", null)
+
+        if (userId == null || token == null) {
+            Toast.makeText(this, "User not authenticated", Toast.LENGTH_SHORT).show()
+            val intent = Intent(this, LogInPage::class.java)
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            startActivity(intent)
+            finish()
+            return
+        }
+
         val followersRecyclerView = findViewById<RecyclerView>(R.id.followersRecyclerView)
         followersRecyclerView.layoutManager = LinearLayoutManager(this)
         followerAdapter = FollowerAdapter(displayedFollowers)
         followersRecyclerView.adapter = followerAdapter
 
-        // Load current user's data
-        database.child(userId).addListenerForSingleValueEvent(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                val currentUser = snapshot.getValue(userCredential::class.java)
-                currentUser?.let {
-                    // Update UI with user data
-                    findViewById<TextView>(R.id.Username).text = it.username
-                    findViewById<Button>(R.id.myBtn).text = "${it.followers.size} Followers"
-                    findViewById<Button>(R.id.Following).text = "${it.following.size} Following"
+        loadUserData()
 
-                    // Load followers
-                    loadFollowers(it.followers)
-                }
-            }
-
-            override fun onCancelled(error: DatabaseError) {
-                Toast.makeText(this@FollowerPage, "Failed to load user data: ${error.message}", Toast.LENGTH_SHORT).show()
-            }
-        })
-
-        // Search button click listener
         val searchButton = findViewById<Button>(R.id.SearchLogo)
         val searchEditText = findViewById<EditText>(R.id.Search)
         searchButton.setOnClickListener {
@@ -73,68 +82,138 @@ class FollowerPage : AppCompatActivity() {
             if (query.isNotEmpty()) {
                 performSearch(query)
             } else {
-                // If search query is empty, show all followers
                 displayedFollowers.clear()
                 displayedFollowers.addAll(allFollowers)
                 followerAdapter.notifyDataSetChanged()
             }
         }
 
-        // Navigation buttons
         val myBtn = findViewById<Button>(R.id.myBtn)
         myBtn.setOnClickListener {
-            // Already on FollowerPage, no action needed (or refresh the list if desired)
+            // Already on FollowerPage
         }
 
         val following = findViewById<Button>(R.id.Following)
         following.setOnClickListener {
             val intent = Intent(this, FollowingPage::class.java)
             startActivity(intent)
+            finish()
         }
 
         val profile = findViewById<Button>(R.id.Profile)
         profile.setOnClickListener {
-            finish() // Go back to the previous activity (likely ProfilePage)
+            finish()
         }
     }
 
-    private fun loadFollowers(followerUids: List<String>) {
-        allFollowers.clear()
-        displayedFollowers.clear()
+    private fun loadUserData() {
+        apiService.getUser(userId!!, "Bearer $token").enqueue(object : Callback<UserResponse> {
+            override fun onResponse(call: Call<UserResponse>, response: Response<UserResponse>) {
+                if (response.isSuccessful && response.body()?.status == "success") {
+                    val user = response.body()!!.user
+                    findViewById<TextView>(R.id.Username).text = user.username
+                    findViewById<Button>(R.id.myBtn).text = "${user.followersCount} Followers"
+                    findViewById<Button>(R.id.Following).text = "${user.followingCount} Following"
+                    databaseHelper.insertOrUpdateUser(
+                        LocalUser(
+                            userId = user.userId.toLong(),
+                            name = user.name,
+                            username = user.username,
+                            phoneNumber = user.phoneNumber,
+                            email = user.email,
+                            bio = user.bio,
+                            profileImage = user.profileImage,
+                            postsCount = user.postsCount,
+                            followersCount = user.followersCount,
+                            followingCount = user.followingCount
+                        )
+                    )
+                    loadFollowers()
+                } else {
+                    loadUserDataFromSQLite()
+                }
+            }
 
-        if (followerUids.isEmpty()) {
-            followerAdapter.notifyDataSetChanged()
-            return
+            override fun onFailure(call: Call<UserResponse>, t: Throwable) {
+                loadUserDataFromSQLite()
+            }
+        })
+    }
+
+    private fun loadUserDataFromSQLite() {
+        val localUser = databaseHelper.getUserById(userId!!.toLong())
+        if (localUser != null) {
+            findViewById<TextView>(R.id.Username).text = localUser.username
+            findViewById<Button>(R.id.myBtn).text = "${localUser.followersCount} Followers"
+            findViewById<Button>(R.id.Following).text = "${localUser.followingCount} Following"
+            loadFollowersFromSQLite()
+        } else {
+            Toast.makeText(this, "User data not available offline", Toast.LENGTH_SHORT).show()
         }
+    }
 
-        // Fetch userCredential for each follower UID
-        for (uid in followerUids) {
-            database.child(uid).addListenerForSingleValueEvent(object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    val follower = snapshot.getValue(userCredential::class.java)
-                    follower?.let {
-                        allFollowers.add(Pair(uid, it))
-                        // Sort by username for consistent display
-                        allFollowers.sortBy { pair -> pair.second.username.lowercase() }
-                        // Update displayed list
-                        displayedFollowers.clear()
-                        displayedFollowers.addAll(allFollowers)
-                        followerAdapter.notifyDataSetChanged()
+    private fun loadFollowers() {
+        apiService.getFollowers(userId!!, "Bearer $token").enqueue(object : Callback<FollowersResponse> {
+            override fun onResponse(call: Call<FollowersResponse>, response: Response<FollowersResponse>) {
+                if (response.isSuccessful && response.body()?.status == "success") {
+                    allFollowers.clear()
+                    allFollowers.addAll(response.body()!!.followers)
+                    allFollowers.forEach { user ->
+                        databaseHelper.insertOrUpdateUser(
+                            LocalUser(
+                                userId = user.userId.toLong(),
+                                name = user.name,
+                                username = user.username,
+                                phoneNumber = user.phoneNumber,
+                                email = user.email,
+                                bio = user.bio,
+                                profileImage = user.profileImage,
+                                postsCount = user.postsCount,
+                                followersCount = user.followersCount,
+                                followingCount = user.followingCount
+                            )
+                        )
                     }
+                    displayedFollowers.clear()
+                    displayedFollowers.addAll(allFollowers.sortedBy { it.username.lowercase() })
+                    followerAdapter.notifyDataSetChanged()
+                } else {
+                    loadFollowersFromSQLite()
                 }
+            }
 
-                override fun onCancelled(error: DatabaseError) {
-                    Toast.makeText(this@FollowerPage, "Failed to load follower: ${error.message}", Toast.LENGTH_SHORT).show()
-                }
-            })
-        }
+            override fun onFailure(call: Call<FollowersResponse>, t: Throwable) {
+                loadFollowersFromSQLite()
+            }
+        })
+    }
+
+    private fun loadFollowersFromSQLite() {
+        val localUsers = databaseHelper.getUsersByUsername("") // Get all users as a fallback
+        allFollowers.clear()
+        allFollowers.addAll(localUsers.map { user ->
+            User(
+                userId = user.userId.toString(),
+                name = user.name,
+                username = user.username,
+                phoneNumber = user.phoneNumber,
+                email = user.email,
+                bio = user.bio,
+                profileImage = user.profileImage,
+                postsCount = user.postsCount,
+                followersCount = user.followersCount,
+                followingCount = user.followingCount
+            )
+        })
+        displayedFollowers.clear()
+        displayedFollowers.addAll(allFollowers.sortedBy { it.username.lowercase() })
+        followerAdapter.notifyDataSetChanged()
     }
 
     private fun performSearch(query: String) {
-        val filteredFollowers = allFollowers.filter { followerPair ->
-            followerPair.second.username.lowercase().contains(query.lowercase())
-        }.sortedBy { it.second.username.lowercase() }.toMutableList()
-
+        val filteredFollowers = allFollowers.filter { user ->
+            user.username.lowercase().contains(query.lowercase())
+        }.sortedBy { it.username.lowercase() }
         displayedFollowers.clear()
         displayedFollowers.addAll(filteredFollowers)
         followerAdapter.notifyDataSetChanged()

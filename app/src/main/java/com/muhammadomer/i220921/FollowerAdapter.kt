@@ -1,17 +1,17 @@
 package com.muhammadomer.i220921
 
-import android.graphics.BitmapFactory
-import android.util.Base64
+import android.content.Intent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 import de.hdodenhof.circleimageview.CircleImageView
 
 class FollowerAdapter(
-    private val followers: MutableList<Pair<String, userCredential>>
+    private val followers: MutableList<User>
 ) : RecyclerView.Adapter<FollowerAdapter.ViewHolder>() {
 
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -27,27 +27,24 @@ class FollowerAdapter(
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val followerPair = followers[position]
-        val follower = followerPair.second // Get the userCredential
+        val follower = followers[position]
 
         holder.usernameTextView.text = follower.username
 
-        // Load profile picture
-        if (follower.profileImage.isNotEmpty()) {
-            try {
-                val decodedImage = Base64.decode(follower.profileImage, Base64.DEFAULT)
-                val bitmap = BitmapFactory.decodeByteArray(decodedImage, 0, decodedImage.size)
-                holder.profilePic.setImageBitmap(bitmap)
-            } catch (e: Exception) {
-                holder.profilePic.setImageResource(R.drawable.dummyprofilepic)
-            }
+        if (follower.profileImage != null && follower.profileImage.isNotEmpty()) {
+            Glide.with(holder.itemView.context)
+                .load(follower.profileImage)
+                .placeholder(R.drawable.dummyprofilepic)
+                .error(R.drawable.dummyprofilepic)
+                .into(holder.profilePic)
         } else {
             holder.profilePic.setImageResource(R.drawable.dummyprofilepic)
         }
 
-        // Message icon click listener (can be implemented later)
         holder.messageIcon.setOnClickListener {
-            // TODO: Navigate to chat page with followerPair.first (UID)
+            val intent = Intent(holder.itemView.context, ChatPage::class.java)
+            intent.putExtra("recipientUid", follower.userId)
+            holder.itemView.context.startActivity(intent)
         }
     }
 
