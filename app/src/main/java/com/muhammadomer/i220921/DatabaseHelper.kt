@@ -4,6 +4,8 @@ import android.content.ContentValues
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 
 data class LocalUser(
     val userId: Long,
@@ -21,161 +23,180 @@ data class LocalUser(
 data class LocalPost(
     val postId: String,
     val userId: Long,
-    val imageUrls: String, // JSON-encoded list of URLs
+    val imageUrls: String,
     val caption: String?,
     val timestamp: Long,
-    val likes: String // JSON-encoded list of user IDs
+    val likes: String
+)
+
+data class LocalRecentSearch(
+    val id: String,
+    val userId: Long,
+    val searchedUserId: Long,
+    val username: String,
+    val timestamp: Long
+)
+
+data class QueuedAction(
+    val actionId: String,
+    val actionType: String,
+    val payload: String,
+    val createdAt: Long
 )
 
 class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
 
     companion object {
         private const val DATABASE_NAME = "ConnectMe.db"
-        private const val DATABASE_VERSION = 3 // Incremented due to new table
-        private const val TABLE_USERS = "users"
-        private const val TABLE_POSTS = "posts"
-        private const val COLUMN_USER_ID = "user_id"
-        private const val COLUMN_NAME = "name"
-        private const val COLUMN_USERNAME = "username"
-        private const val COLUMN_PHONE_NUMBER = "phone_number"
-        private const val COLUMN_EMAIL = "email"
-        private const val COLUMN_BIO = "bio"
-        private const val COLUMN_PROFILE_IMAGE = "profile_image"
-        private const val COLUMN_POSTS_COUNT = "posts_count"
-        private const val COLUMN_FOLLOWERS_COUNT = "followers_count"
-        private const val COLUMN_FOLLOWING_COUNT = "following_count"
-        private const val COLUMN_POST_ID = "post_id"
-        private const val COLUMN_POST_USER_ID = "user_id"
-        private const val COLUMN_IMAGE_URLS = "image_urls"
-        private const val COLUMN_CAPTION = "caption"
-        private const val COLUMN_TIMESTAMP = "timestamp"
-        private const val COLUMN_LIKES = "likes"
+        private const val DATABASE_VERSION = 2
     }
 
     override fun onCreate(db: SQLiteDatabase) {
-        val createUsersTableQuery = """
-            CREATE TABLE $TABLE_USERS (
-                $COLUMN_USER_ID INTEGER PRIMARY KEY,
-                $COLUMN_NAME TEXT NOT NULL,
-                $COLUMN_USERNAME TEXT NOT NULL UNIQUE,
-                $COLUMN_PHONE_NUMBER TEXT NOT NULL,
-                $COLUMN_EMAIL TEXT NOT NULL UNIQUE,
-                $COLUMN_BIO TEXT,
-                $COLUMN_PROFILE_IMAGE TEXT,
-                $COLUMN_POSTS_COUNT INTEGER DEFAULT 0,
-                $COLUMN_FOLLOWERS_COUNT INTEGER DEFAULT 0,
-                $COLUMN_FOLLOWING_COUNT INTEGER DEFAULT 0
+        db.execSQL("""
+            CREATE TABLE users (
+                user_id INTEGER PRIMARY KEY,
+                name TEXT NOT NULL,
+                username TEXT NOT NULL,
+                phone_number TEXT NOT NULL,
+                email TEXT NOT NULL,
+                bio TEXT,
+                profile_image TEXT,
+                posts_count INTEGER,
+                followers_count INTEGER,
+                following_count INTEGER
             )
-        """.trimIndent()
-        db.execSQL(createUsersTableQuery)
-
-        val createPostsTableQuery = """
-            CREATE TABLE $TABLE_POSTS (
-                $COLUMN_POST_ID TEXT PRIMARY KEY,
-                $COLUMN_POST_USER_ID INTEGER,
-                $COLUMN_IMAGE_URLS TEXT,
-                $COLUMN_CAPTION TEXT,
-                $COLUMN_TIMESTAMP INTEGER,
-                $COLUMN_LIKES TEXT,
-                FOREIGN KEY ($COLUMN_POST_USER_ID) REFERENCES $TABLE_USERS ($COLUMN_USER_ID)
+        """)
+        db.execSQL("""
+            CREATE TABLE posts (
+                post_id TEXT PRIMARY KEY,
+                user_id INTEGER,
+                image_urls TEXT,
+                caption TEXT,
+                timestamp INTEGER,
+                likes TEXT,
+                FOREIGN KEY (user_id) REFERENCES users(user_id)
             )
-        """.trimIndent()
-        db.execSQL(createPostsTableQuery)
+        """)
+        db.execSQL("""
+            CREATE TABLE recent_searches (
+                id TEXT PRIMARY KEY,
+                user_id INTEGER,
+                searched_user_id INTEGER,
+                username TEXT,
+                timestamp INTEGER,
+                FOREIGN KEY (user_id) REFERENCES users(user_id),
+                FOREIGN KEY (searched_user_id) REFERENCES users(user_id)
+            )
+        """)
+        db.execSQL("""
+            CREATE TABLE queued_actions (
+                action_id TEXT PRIMARY KEY,
+                action_type TEXT,
+                payload TEXT,
+                created_at INTEGER
+            )
+        """)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        db.execSQL("DROP TABLE IF EXISTS $TABLE_POSTS")
-        db.execSQL("DROP TABLE IF EXISTS $TABLE_USERS")
-        onCreate(db)
+        if (oldVersion < 2) {
+            db.execSQL("CREATE TABLE recent_searches (id TEXT PRIMARY KEY, user_id INTEGER, searched_user_id INTEGER, username TEXT, timestamp INTEGER, FOREIGN KEY (user_id) REFERENCES users(user_id), FOREIGN KEY (searched_user_id) REFERENCES users(user_id))")
+            db.execSQL("CREATE TABLE queued_actions (action_id TEXT PRIMARY KEY, action_type TEXT, payload TEXT, created_at INTEGER)")
+        }
     }
 
     fun insertOrUpdateUser(user: LocalUser) {
         val db = writableDatabase
         val values = ContentValues().apply {
-            put(COLUMN_USER_ID, user.userId)
-            put(COLUMN_NAME, user.name)
-            put(COLUMN_USERNAME, user.username)
-            put(COLUMN_PHONE_NUMBER, user.phoneNumber)
-            put(COLUMN_EMAIL, user.email)
-            put(COLUMN_BIO, user.bio)
-            put(COLUMN_PROFILE_IMAGE, user.profileImage)
-            put(COLUMN_POSTS_COUNT, user.postsCount)
-            put(COLUMN_FOLLOWERS_COUNT, user.followersCount)
-            put(COLUMN_FOLLOWING_COUNT, user.followingCount)
+            put("user_id", user.userId)
+            put("name", user.name)
+            put("username", user.username)
+            put("phone_number", user.phoneNumber)
+            put("email", user.email)
+            put("bio", user.bio)
+            put("profile_image", user.profileImage)
+            put("posts_count", user.postsCount)
+            put("followers_count", user.followersCount)
+            put("following_count", user.followingCount)
         }
-        db.replace(TABLE_USERS, null, values)
+        db.replace("users", null, values)
         db.close()
     }
 
     fun getUserById(userId: Long): LocalUser? {
         val db = readableDatabase
-        val cursor = db.query(
-            TABLE_USERS,
-            null,
-            "$COLUMN_USER_ID = ?",
-            arrayOf(userId.toString()),
-            null,
-            null,
-            null
-        )
-
+        val cursor = db.query("users", null, "user_id = ?", arrayOf(userId.toString()), null, null, null)
         return if (cursor.moveToFirst()) {
-            val user = LocalUser(
-                userId = cursor.getLong(cursor.getColumnIndexOrThrow(COLUMN_USER_ID)),
-                name = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_NAME)),
-                username = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_USERNAME)),
-                phoneNumber = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PHONE_NUMBER)),
-                email = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EMAIL)),
-                bio = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_BIO)),
-                profileImage = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PROFILE_IMAGE)),
-                postsCount = cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_POSTS_COUNT)),
-                followersCount = cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_FOLLOWERS_COUNT)),
-                followingCount = cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_FOLLOWING_COUNT))
-            )
-            cursor.close()
-            user
+            LocalUser(
+                userId = cursor.getLong(cursor.getColumnIndexOrThrow("user_id")),
+                name = cursor.getString(cursor.getColumnIndexOrThrow("name")),
+                username = cursor.getString(cursor.getColumnIndexOrThrow("username")),
+                phoneNumber = cursor.getString(cursor.getColumnIndexOrThrow("phone_number")),
+                email = cursor.getString(cursor.getColumnIndexOrThrow("email")),
+                bio = cursor.getString(cursor.getColumnIndexOrThrow("bio")),
+                profileImage = cursor.getString(cursor.getColumnIndexOrThrow("profile_image")),
+                postsCount = cursor.getInt(cursor.getColumnIndexOrThrow("posts_count")),
+                followersCount = cursor.getInt(cursor.getColumnIndexOrThrow("followers_count")),
+                followingCount = cursor.getInt(cursor.getColumnIndexOrThrow("following_count"))
+            ).also { cursor.close() }
         } else {
             cursor.close()
             null
         }
     }
 
+    fun getUsersByUsername(query: String): List<LocalUser> {
+        val db = readableDatabase
+        val cursor = db.query("users", null, "username LIKE ?", arrayOf("%$query%"), null, null, "username ASC")
+        val users = mutableListOf<LocalUser>()
+        while (cursor.moveToNext()) {
+            users.add(
+                LocalUser(
+                    userId = cursor.getLong(cursor.getColumnIndexOrThrow("user_id")),
+                    name = cursor.getString(cursor.getColumnIndexOrThrow("name")),
+                    username = cursor.getString(cursor.getColumnIndexOrThrow("username")),
+                    phoneNumber = cursor.getString(cursor.getColumnIndexOrThrow("phone_number")),
+                    email = cursor.getString(cursor.getColumnIndexOrThrow("email")),
+                    bio = cursor.getString(cursor.getColumnIndexOrThrow("bio")),
+                    profileImage = cursor.getString(cursor.getColumnIndexOrThrow("profile_image")),
+                    postsCount = cursor.getInt(cursor.getColumnIndexOrThrow("posts_count")),
+                    followersCount = cursor.getInt(cursor.getColumnIndexOrThrow("followers_count")),
+                    followingCount = cursor.getInt(cursor.getColumnIndexOrThrow("following_count"))
+                )
+            )
+        }
+        cursor.close()
+        return users
+    }
+
     fun insertOrUpdatePost(post: LocalPost) {
         val db = writableDatabase
         val values = ContentValues().apply {
-            put(COLUMN_POST_ID, post.postId)
-            put(COLUMN_POST_USER_ID, post.userId)
-            put(COLUMN_IMAGE_URLS, post.imageUrls)
-            put(COLUMN_CAPTION, post.caption)
-            put(COLUMN_TIMESTAMP, post.timestamp)
-            put(COLUMN_LIKES, post.likes)
+            put("post_id", post.postId)
+            put("user_id", post.userId)
+            put("image_urls", post.imageUrls)
+            put("caption", post.caption)
+            put("timestamp", post.timestamp)
+            put("likes", post.likes)
         }
-        db.replace(TABLE_POSTS, null, values)
+        db.replace("posts", null, values)
         db.close()
     }
 
     fun getPostsByUserIds(userIds: List<Long>): List<LocalPost> {
         val db = readableDatabase
         val userIdsString = userIds.joinToString(",")
-        val cursor = db.query(
-            TABLE_POSTS,
-            null,
-            "$COLUMN_POST_USER_ID IN ($userIdsString)",
-            null,
-            null,
-            null,
-            "$COLUMN_TIMESTAMP DESC"
-        )
+        val cursor = db.query("posts", null, "user_id IN ($userIdsString)", null, null, null, "timestamp DESC")
         val posts = mutableListOf<LocalPost>()
         while (cursor.moveToNext()) {
             posts.add(
                 LocalPost(
-                    postId = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_POST_ID)),
-                    userId = cursor.getLong(cursor.getColumnIndexOrThrow(COLUMN_POST_USER_ID)),
-                    imageUrls = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_IMAGE_URLS)),
-                    caption = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_CAPTION)),
-                    timestamp = cursor.getLong(cursor.getColumnIndexOrThrow(COLUMN_TIMESTAMP)),
-                    likes = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_LIKES))
+                    postId = cursor.getString(cursor.getColumnIndexOrThrow("post_id")),
+                    userId = cursor.getLong(cursor.getColumnIndexOrThrow("user_id")),
+                    imageUrls = cursor.getString(cursor.getColumnIndexOrThrow("image_urls")),
+                    caption = cursor.getString(cursor.getColumnIndexOrThrow("caption")),
+                    timestamp = cursor.getLong(cursor.getColumnIndexOrThrow("timestamp")),
+                    likes = cursor.getString(cursor.getColumnIndexOrThrow("likes"))
                 )
             )
         }
@@ -183,10 +204,80 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         return posts
     }
 
+    fun insertOrUpdateRecentSearch(search: LocalRecentSearch) {
+        val db = writableDatabase
+        val values = ContentValues().apply {
+            put("id", search.id)
+            put("user_id", search.userId)
+            put("searched_user_id", search.searchedUserId)
+            put("username", search.username)
+            put("timestamp", search.timestamp)
+        }
+        db.replace("recent_searches", null, values)
+        db.close()
+    }
+
+    fun getRecentSearches(userId: Long): List<LocalRecentSearch> {
+        val db = readableDatabase
+        val cursor = db.query("recent_searches", null, "user_id = ?", arrayOf(userId.toString()), null, null, "timestamp DESC")
+        val searches = mutableListOf<LocalRecentSearch>()
+        while (cursor.moveToNext()) {
+            searches.add(
+                LocalRecentSearch(
+                    id = cursor.getString(cursor.getColumnIndexOrThrow("id")),
+                    userId = cursor.getLong(cursor.getColumnIndexOrThrow("user_id")),
+                    searchedUserId = cursor.getLong(cursor.getColumnIndexOrThrow("searched_user_id")),
+                    username = cursor.getString(cursor.getColumnIndexOrThrow("username")),
+                    timestamp = cursor.getLong(cursor.getColumnIndexOrThrow("timestamp"))
+                )
+            )
+        }
+        cursor.close()
+        return searches
+    }
+
+    fun deleteRecentSearch(searchId: String) {
+        val db = writableDatabase
+        db.delete("recent_searches", "id = ?", arrayOf(searchId))
+        db.close()
+    }
+
+    fun queueAction(action: QueuedAction) {
+        val db = writableDatabase
+        val values = ContentValues().apply {
+            put("action_id", action.actionId)
+            put("action_type", action.actionType)
+            put("payload", action.payload)
+            put("created_at", action.createdAt)
+        }
+        db.insert("queued_actions", null, values)
+        db.close()
+    }
+
+    fun getQueuedActions(): List<QueuedAction> {
+        val db = readableDatabase
+        val cursor = db.query("queued_actions", null, null, null, null, null, null)
+        val actions = mutableListOf<QueuedAction>()
+        while (cursor.moveToNext()) {
+            actions.add(
+                QueuedAction(
+                    actionId = cursor.getString(cursor.getColumnIndexOrThrow("action_id")),
+                    actionType = cursor.getString(cursor.getColumnIndexOrThrow("action_type")),
+                    payload = cursor.getString(cursor.getColumnIndexOrThrow("payload")),
+                    createdAt = cursor.getLong(cursor.getColumnIndexOrThrow("created_at"))
+                )
+            )
+        }
+        cursor.close()
+        return actions
+    }
+
     fun clearUserData() {
         val db = writableDatabase
-        db.delete(TABLE_USERS, null, null)
-        db.delete(TABLE_POSTS, null, null)
+        db.delete("users", null, null)
+        db.delete("posts", null, null)
+        db.delete("recent_searches", null, null)
+        db.delete("queued_actions", null, null)
         db.close()
     }
 }

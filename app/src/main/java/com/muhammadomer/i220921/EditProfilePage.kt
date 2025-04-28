@@ -21,6 +21,8 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.logging.HttpLoggingInterceptor
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
+import com.google.gson.Gson
+import java.util.UUID
 
 class EditProfilePage : AppCompatActivity() {
 
@@ -65,7 +67,6 @@ class EditProfilePage : AppCompatActivity() {
             .build()
         apiService = retrofit.create(ApiService::class.java)
 
-        // Initialize DatabaseHelper
         databaseHelper = DatabaseHelper(this)
 
         val sharedPref = getSharedPreferences("ConnectMePrefs", MODE_PRIVATE)
@@ -100,20 +101,17 @@ class EditProfilePage : AppCompatActivity() {
     }
 
     private fun loadUserData(userId: String) {
-        // Try to load from API first
         apiService.getUser(userId, "Bearer $token").enqueue(object : Callback<UserResponse> {
             override fun onResponse(call: Call<UserResponse>, response: Response<UserResponse>) {
                 if (response.isSuccessful) {
                     val user = response.body()
                     user?.let {
-                        // Update UI
                         name.setHint(it.name ?: "")
                         username.setHint(it.username ?: "")
                         contact.setHint(it.phoneNumber ?: "")
                         bio.setHint(it.bio.takeIf { b -> b?.isNotEmpty() == true } ?: "write your bio...")
                         usernameDisplay.text = it.name ?: ""
 
-                        // Load profile image
                         if (!it.profileImage.isNullOrEmpty()) {
                             Thread {
                                 try {
@@ -130,7 +128,6 @@ class EditProfilePage : AppCompatActivity() {
                             }.start()
                         }
 
-                        // Update SQLite with API data
                         val localUser = LocalUser(
                             userId = userId.toLong(),
                             name = it.name ?: "",
@@ -146,17 +143,15 @@ class EditProfilePage : AppCompatActivity() {
                         databaseHelper.insertOrUpdateUser(localUser)
                     }
                 } else {
-                    // API failed, try to load from SQLite
-                    val errorBody = response.errorBody()?.string() ?: "No error body"
-                    Log.e("EditProfilePage", "Failed to load data: ${response.code()} - ${response.message()} - $errorBody")
-                    Toast.makeText(this@EditProfilePage, "Failed to load data from API, trying local storage: ${response.message()}", Toast.LENGTH_LONG).show()
+                    Log.e("EditProfilePage", "Failed to load data: ${response.message()}")
+                    Toast.makeText(this@EditProfilePage, "Failed to load data from API, trying local storage", Toast.LENGTH_LONG).show()
                     loadFromSQLite(userId.toLong())
                 }
             }
 
             override fun onFailure(call: Call<UserResponse>, t: Throwable) {
                 Log.e("EditProfilePage", "Network error: ${t.message}")
-                Toast.makeText(this@EditProfilePage, "Network error, trying local storage: ${t.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@EditProfilePage, "Network error, trying local storage", Toast.LENGTH_SHORT).show()
                 loadFromSQLite(userId.toLong())
             }
         })
@@ -233,7 +228,8 @@ class EditProfilePage : AppCompatActivity() {
                         val contactInput = contact.text.toString().trim()
                         val updatedContact = if (contactInput.isNotEmpty()) contactInput else it.phoneNumber ?: ""
                         val bioInput = bio.text.toString().trim()
-                        val updatedBio = if (bioInput.isEmpty()) it.bio else bioInput
+                        val updatedBio = if (bioInput.isEmpty() && it.bio?.isNotEmpty() == true) it.bio else bioInput
+                        val updatedEmail = it.email ?: databaseHelper.getUserById(userId.toLong())?.email ?: ""
 
                         if (updatedUsername != it.username && usernameInput.isNotEmpty()) {
                             checkUsernameUnique(updatedUsername, userId) { isUnique ->
@@ -241,19 +237,67 @@ class EditProfilePage : AppCompatActivity() {
                                     Toast.makeText(this@EditProfilePage, "Username already taken", Toast.LENGTH_SHORT).show()
                                     return@checkUsernameUnique
                                 }
-                                uploadImageAndUpdate(userId, updatedName, updatedUsername, updatedContact, updatedBio, it.profileImage)
+                                uploadImageAndUpdate(userId, updatedName, updatedUsername, updatedContact, updatedBio, updatedEmail, it.profileImage)
                             }
                         } else {
-                            uploadImageAndUpdate(userId, updatedName, updatedUsername, updatedContact, updatedBio, it.profileImage)
+                            uploadImageAndUpdate(userId, updatedName, updatedUsername, updatedContact, updatedBio, updatedEmail, it.profileImage)
                         }
                     }
                 } else {
                     Toast.makeText(this@EditProfilePage, "Failed to load data: ${response.message()}", Toast.LENGTH_SHORT).show()
+                    val localUser = databaseHelper.getUserById(userId.toLong())
+                    if (localUser != null) {
+                        val nameInput = name.text.toString().trim()
+                        val updatedName = if (nameInput.isNotEmpty()) nameInput else localUser.name
+                        val usernameInput = username.text.toString().trim()
+                        val updatedUsername = if (usernameInput.isNotEmpty()) usernameInput else localUser.username
+                        val contactInput = contact.text.toString().trim()
+                        val updatedContact = if (contactInput.isNotEmpty()) contactInput else localUser.phoneNumber
+                        val bioInput = bio.text.toString().trim()
+                        val updatedBio = if (bioInput.isEmpty() && localUser.bio?.isNotEmpty() == true) localUser.bio else bioInput
+                        val updatedEmail = localUser.email
+
+                        if (updatedUsername != localUser.username && usernameInput.isNotEmpty()) {
+                            checkUsernameUnique(updatedUsername, userId) { isUnique ->
+                                if (!isUnique) {
+                                    Toast.makeText(this@EditProfilePage, "Username already taken", Toast.LENGTH_SHORT).show()
+                                    return@checkUsernameUnique
+                                }
+                                uploadImageAndUpdate(userId, updatedName, updatedUsername, updatedContact, updatedBio, updatedEmail, localUser.profileImage)
+                            }
+                        } else {
+                            uploadImageAndUpdate(userId, updatedName, updatedUsername, updatedContact, updatedBio, updatedEmail, localUser.profileImage)
+                        }
+                    }
                 }
             }
 
             override fun onFailure(call: Call<UserResponse>, t: Throwable) {
                 Toast.makeText(this@EditProfilePage, "Network error: ${t.message}", Toast.LENGTH_SHORT).show()
+                val localUser = databaseHelper.getUserById(userId.toLong())
+                if (localUser != null) {
+                    val nameInput = name.text.toString().trim()
+                    val updatedName = if (nameInput.isNotEmpty()) nameInput else localUser.name
+                    val usernameInput = username.text.toString().trim()
+                    val updatedUsername = if (usernameInput.isNotEmpty()) usernameInput else localUser.username
+                    val contactInput = contact.text.toString().trim()
+                    val updatedContact = if (contactInput.isNotEmpty()) contactInput else localUser.phoneNumber
+                    val bioInput = bio.text.toString().trim()
+                    val updatedBio = if (bioInput.isEmpty() && localUser.bio?.isNotEmpty() == true) localUser.bio else bioInput
+                    val updatedEmail = localUser.email
+
+                    if (updatedUsername != localUser.username && usernameInput.isNotEmpty()) {
+                        checkUsernameUnique(updatedUsername, userId) { isUnique ->
+                            if (!isUnique) {
+                                Toast.makeText(this@EditProfilePage, "Username already taken", Toast.LENGTH_SHORT).show()
+                                return@checkUsernameUnique
+                            }
+                            uploadImageAndUpdate(userId, updatedName, updatedUsername, updatedContact, updatedBio, updatedEmail, localUser.profileImage)
+                        }
+                    } else {
+                        uploadImageAndUpdate(userId, updatedName, updatedUsername, updatedContact, updatedBio, updatedEmail, localUser.profileImage)
+                    }
+                }
             }
         })
     }
@@ -264,35 +308,42 @@ class EditProfilePage : AppCompatActivity() {
         updatedUsername: String,
         updatedContact: String,
         updatedBio: String?,
+        updatedEmail: String,
         currentProfileImage: String?
     ) {
         if (profileImageUri == null) {
-            performUpdate(userId, updatedName, updatedUsername, updatedContact, updatedBio, currentProfileImage)
+            performUpdate(userId, updatedName, updatedUsername, updatedContact, updatedBio, updatedEmail, currentProfileImage)
             return
         }
 
-        val requestFile = prepareFilePart("profileImage", profileImageUri!!)
+        val mimeType = contentResolver.getType(profileImageUri!!)?.let { type ->
+            if (type == "image/png") "image/png" else "image/jpeg"
+        } ?: "image/jpeg"
+        val requestFile = prepareFilePart("profileImage", profileImageUri!!, mimeType)
         apiService.uploadProfilePicture(userId, "Bearer $token", requestFile).enqueue(object : Callback<ImageUploadResponse> {
             override fun onResponse(call: Call<ImageUploadResponse>, response: Response<ImageUploadResponse>) {
                 if (response.isSuccessful) {
                     val result = response.body()
                     if (result?.status == "success") {
-                        performUpdate(userId, updatedName, updatedUsername, updatedContact, updatedBio, result.imageUrl)
+                        performUpdate(userId, updatedName, updatedUsername, updatedContact, updatedBio, updatedEmail, result.imageUrl)
                     } else {
                         Toast.makeText(this@EditProfilePage, result?.message ?: "Failed to upload image", Toast.LENGTH_SHORT).show()
+                        queueUpdate(userId, updatedName, updatedUsername, updatedContact, updatedBio, updatedEmail, null)
                     }
                 } else {
                     Toast.makeText(this@EditProfilePage, "Failed to upload image: ${response.message()}", Toast.LENGTH_SHORT).show()
+                    queueUpdate(userId, updatedName, updatedUsername, updatedContact, updatedBio, updatedEmail, null)
                 }
             }
 
             override fun onFailure(call: Call<ImageUploadResponse>, t: Throwable) {
                 Toast.makeText(this@EditProfilePage, "Network error: ${t.message}", Toast.LENGTH_SHORT).show()
+                queueUpdate(userId, updatedName, updatedUsername, updatedContact, updatedBio, updatedEmail, null)
             }
         })
     }
 
-    private fun prepareFilePart(partName: String, fileUri: Uri): MultipartBody.Part {
+    private fun prepareFilePart(partName: String, fileUri: Uri, mimeType: String): MultipartBody.Part {
         val inputStream: InputStream? = contentResolver.openInputStream(fileUri)
         val byteArrayOutputStream = ByteArrayOutputStream()
         inputStream?.use { input ->
@@ -303,8 +354,8 @@ class EditProfilePage : AppCompatActivity() {
             }
         }
         val fileBytes = byteArrayOutputStream.toByteArray()
-        val requestBody = RequestBody.create("image/jpeg".toMediaType(), fileBytes)
-        return MultipartBody.Part.createFormData(partName, "profile_image.jpg", requestBody)
+        val requestBody = RequestBody.create(mimeType.toMediaType(), fileBytes)
+        return MultipartBody.Part.createFormData(partName, "profile_image.${if (mimeType == "image/png") "png" else "jpg"}", requestBody)
     }
 
     private fun performUpdate(
@@ -313,6 +364,7 @@ class EditProfilePage : AppCompatActivity() {
         updatedUsername: String,
         updatedContact: String,
         updatedBio: String?,
+        updatedEmail: String,
         profileImageUrl: String?
     ) {
         val updateRequest = UpdateUserRequest(
@@ -320,7 +372,7 @@ class EditProfilePage : AppCompatActivity() {
             username = updatedUsername,
             phoneNumber = updatedContact,
             bio = updatedBio,
-            profileImage = profileImageUrl ?: ""
+            profileImage = profileImageUrl
         )
 
         apiService.updateUser(userId, "Bearer $token", updateRequest).enqueue(object : Callback<UpdateUserResponse> {
@@ -328,18 +380,17 @@ class EditProfilePage : AppCompatActivity() {
                 if (response.isSuccessful) {
                     val result = response.body()
                     if (result?.status == "success") {
-                        // Update SQLite with the new data
                         val localUser = LocalUser(
                             userId = userId.toLong(),
                             name = updatedName,
                             username = updatedUsername,
                             phoneNumber = updatedContact,
-                            email = "", // Email not updated here, fetch from SQLite or API if needed
+                            email = updatedEmail,
                             bio = updatedBio,
                             profileImage = profileImageUrl,
-                            postsCount = 0, // Fetch from SQLite or API if needed
-                            followersCount = 0,
-                            followingCount = 0
+                            postsCount = databaseHelper.getUserById(userId.toLong())?.postsCount ?: 0,
+                            followersCount = databaseHelper.getUserById(userId.toLong())?.followersCount ?: 0,
+                            followingCount = databaseHelper.getUserById(userId.toLong())?.followingCount ?: 0
                         )
                         databaseHelper.insertOrUpdateUser(localUser)
 
@@ -349,16 +400,58 @@ class EditProfilePage : AppCompatActivity() {
                         finish()
                     } else {
                         Toast.makeText(this@EditProfilePage, result?.message ?: "Failed to update profile", Toast.LENGTH_SHORT).show()
+                        queueUpdate(userId, updatedName, updatedUsername, updatedContact, updatedBio, updatedEmail, profileImageUrl)
                     }
                 } else {
                     Toast.makeText(this@EditProfilePage, "Failed to update profile: ${response.message()}", Toast.LENGTH_SHORT).show()
+                    queueUpdate(userId, updatedName, updatedUsername, updatedContact, updatedBio, updatedEmail, profileImageUrl)
                 }
             }
 
             override fun onFailure(call: Call<UpdateUserResponse>, t: Throwable) {
                 Log.e("EditProfilePage", "Network error: ${t.message}")
                 Toast.makeText(this@EditProfilePage, "Network error: ${t.message}", Toast.LENGTH_SHORT).show()
+                queueUpdate(userId, updatedName, updatedUsername, updatedContact, updatedBio, updatedEmail, profileImageUrl)
             }
         })
+    }
+
+    private fun queueUpdate(
+        userId: String,
+        updatedName: String,
+        updatedUsername: String,
+        updatedContact: String,
+        updatedBio: String?,
+        updatedEmail: String,
+        profileImageUrl: String?
+    ) {
+        val action = QueuedAction(
+            actionId = UUID.randomUUID().toString(),
+            actionType = "update_profile",
+            payload = Gson().toJson(UpdateUserRequest(
+                name = updatedName,
+                username = updatedUsername,
+                phoneNumber = updatedContact,
+                bio = updatedBio,
+                profileImage = profileImageUrl
+            )),
+            createdAt = System.currentTimeMillis()
+        )
+        databaseHelper.queueAction(action)
+        Toast.makeText(this@EditProfilePage, "Update queued for later sync", Toast.LENGTH_SHORT).show()
+
+        val localUser = LocalUser(
+            userId = userId.toLong(),
+            name = updatedName,
+            username = updatedUsername,
+            phoneNumber = updatedContact,
+            email = updatedEmail,
+            bio = updatedBio,
+            profileImage = profileImageUrl,
+            postsCount = databaseHelper.getUserById(userId.toLong())?.postsCount ?: 0,
+            followersCount = databaseHelper.getUserById(userId.toLong())?.followersCount ?: 0,
+            followingCount = databaseHelper.getUserById(userId.toLong())?.followingCount ?: 0
+        )
+        databaseHelper.insertOrUpdateUser(localUser)
     }
 }

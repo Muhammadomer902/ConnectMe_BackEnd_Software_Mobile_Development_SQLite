@@ -1,7 +1,6 @@
 package com.muhammadomer.i220921
 
 import android.graphics.BitmapFactory
-import android.util.Base64
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -9,11 +8,12 @@ import android.widget.Button
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import de.hdodenhof.circleimageview.CircleImageView
+import java.net.URL
 
 class SearchedUsersAdapter(
-    private val users: MutableList<Pair<String, userCredential>>, // Updated to Pair<String, userCredential>
+    private val users: MutableList<SearchUser>,
     private val currentUserId: String,
-    private val onFollowClick: (Pair<String, userCredential>) -> Unit // Updated callback
+    private val onFollowClick: (SearchUser) -> Unit
 ) : RecyclerView.Adapter<SearchedUsersAdapter.ViewHolder>() {
 
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -30,34 +30,35 @@ class SearchedUsersAdapter(
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val userPair = users[position]
-        val user = userPair.second // Get the userCredential from the Pair
-
+        val user = users[position]
         holder.usernameTextView.text = user.username
 
-        // Load profile picture
-        if (user.profileImage.isNotEmpty()) {
-            try {
-                val decodedImage = Base64.decode(user.profileImage, Base64.DEFAULT)
-                val bitmap = BitmapFactory.decodeByteArray(decodedImage, 0, decodedImage.size)
-                holder.profilePic.setImageBitmap(bitmap)
-            } catch (e: Exception) {
-                holder.profilePic.setImageResource(R.drawable.dummyprofilepic)
-            }
+        if (!user.profileImage.isNullOrEmpty()) {
+            Thread {
+                try {
+                    val url = URL(user.profileImage)
+                    val bitmap = BitmapFactory.decodeStream(url.openStream())
+                    holder.itemView.post {
+                        holder.profilePic.setImageBitmap(bitmap)
+                    }
+                } catch (e: Exception) {
+                    holder.itemView.post {
+                        holder.profilePic.setImageResource(R.drawable.dummyprofilepic)
+                    }
+                }
+            }.start()
         } else {
             holder.profilePic.setImageResource(R.drawable.dummyprofilepic)
         }
 
-        // Check if the current user already follows this user
-        val isFollowing = user.followers.contains(currentUserId)
-        if (isFollowing) {
+        if (user.isFollowing) {
             holder.followButton.visibility = View.GONE
             holder.followedText.visibility = View.VISIBLE
         } else {
             holder.followButton.visibility = View.VISIBLE
             holder.followedText.visibility = View.GONE
             holder.followButton.setOnClickListener {
-                onFollowClick(userPair) // Pass the entire Pair
+                onFollowClick(user)
             }
         }
     }

@@ -5,32 +5,20 @@ import retrofit2.Call
 import retrofit2.http.*
 
 interface ApiService {
-    // From RegisterationPage.kt
-    @POST("check-user.php")
-    fun checkUser(@Body request: CheckUserRequest): Call<CheckUserResponse>
+    @GET("check-user.php")
+    fun checkUser(@Query("email") email: String): Call<CheckUserResponse>
 
     @POST("register.php")
     fun register(@Body request: RegisterRequest): Call<RegisterResponse>
 
-    // New endpoint for login
-    @POST("login.php")
-    fun login(
-        @Query("email") email: String,
-        @Query("password") password: String
-    ): Call<RegisterResponse>
+    @GET("login.php")
+    fun login(@Query("email") email: String, @Query("password") password: String): Call<RegisterResponse>
 
-    // New endpoint to fetch email by username
     @GET("get-email-by-username.php")
-    fun getEmailByUsername(
-        @Query("username") username: String
-    ): Call<UserEmailResponse>
+    fun getEmailByUsername(@Query("username") username: String): Call<EmailResponse>
 
-    // From EditProfilePage.kt
     @GET("user.php")
-    fun getUser(
-        @Query("userId") userId: String,
-        @Header("Authorization") authToken: String
-    ): Call<UserResponse>
+    fun getUser(@Query("userId") userId: String, @Header("Authorization") authToken: String): Call<UserResponse>
 
     @GET("check-username.php")
     fun checkUsername(
@@ -54,10 +42,40 @@ interface ApiService {
         @Body request: UpdateUserRequest
     ): Call<UpdateUserResponse>
 
-    // New endpoint for fetching posts
     @GET("posts.php")
-    fun getPosts(
+    fun getPosts(@Query("userId") userId: String, @Header("Authorization") authToken: String): Call<PostsResponse>
+
+    // New endpoints for search and follow
+    @GET("search-users.php")
+    fun searchUsers(
+        @Query("query") query: String,
         @Query("userId") userId: String,
         @Header("Authorization") authToken: String
-    ): Call<PostsResponse>
+    ): Call<SearchUsersResponse>
+
+    @POST("follow.php")
+    fun followUser(
+        @Query("userId") userId: String,
+        @Query("targetUserId") targetUserId: String,
+        @Header("Authorization") authToken: String
+    ): Call<GenericResponse>
 }
+
+data class SearchUser(
+    val userId: String,
+    val username: String,
+    val name: String,
+    val profileImage: String?,
+    val isFollowing: Boolean
+)
+
+data class SearchUsersResponse(
+    val status: String,
+    val message: String,
+    val users: List<SearchUser>
+)
+
+data class GenericResponse(
+    val status: String,
+    val message: String
+)

@@ -10,99 +10,111 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.database.*
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import okhttp3.logging.HttpLoggingInterceptor
+import okhttp3.OkHttpClient
+import java.util.UUID
+
+data class RecentSearch(
+    val id: String,
+    val searchedUserId: String,
+    val username: String,
+    val timestamp: Long
+)
 
 class SearchPage : AppCompatActivity() {
-    private lateinit var auth: FirebaseAuth
-    private lateinit var database: DatabaseReference
+    private lateinit var apiService: ApiService
+    private lateinit var databaseHelper: DatabaseHelper
     private lateinit var recentSearchesAdapter: RecentSearchesAdapter
     private lateinit var searchedUsersAdapter: SearchedUsersAdapter
-    private var currentFilter = "All" // Default filter
-    private var allUsers = mutableListOf<Pair<String, userCredential>>() // Store UID and userCredential
-    private var currentUser: userCredential? = null
-    private var recentSearches = mutableListOf<String>()
-    private var searchedUsers = mutableListOf<Pair<String, userCredential>>() // Store UID and userCredential
+    private var currentFilter = "All"
+    private var allUsers = mutableListOf<SearchUser>()
+    private var recentSearches = mutableListOf<RecentSearch>()
+    private var searchedUsers = mutableListOf<SearchUser>()
+    private var userId: String? = null
+    private var token: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_search_page)
 
-        // Handle system bar insets for edge-to-edge display
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { view, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             view.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
 
-        // Initialize Firebase
-        auth = FirebaseAuth.getInstance()
-        database = FirebaseDatabase.getInstance().getReference("RegisteredUsers")
-        val userId = auth.currentUser?.uid ?: return
+        val logging = HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BODY
+        }
+        val client = OkHttpClient.Builder()
+            .addInterceptor(logging)
+            .build()
+        val retrofit = Retrofit.Builder()
+            .baseUrl("http://192.168.2.11/CONNECTME-API/api/")
+            .client(client)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+        apiService = retrofit.create(ApiService::class.java)
 
-        // Set up RecyclerView for Recent Searches
+        databaseHelper = DatabaseHelper(this)
+
+        val sharedPref = getSharedPreferences("ConnectMePrefs", MODE_PRIVATE)
+        userId = sharedPref.getString("userId", null)
+        token = sharedPref.getString("token", null)
+
+        if (userId == null || token == null) {
+            Toast.makeText(this, "User not authenticated", Toast.LENGTH_SHORT).show()
+            val intent = Intent(this, LogInPage::class.java)
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            startActivity(intent)
+            finish()
+            return
+        }
+
         val recentSearchesRecyclerView = findViewById<RecyclerView>(R.id.recentSearchesRecyclerView)
         recentSearchesRecyclerView.layoutManager = LinearLayoutManager(this)
         recentSearchesAdapter = RecentSearchesAdapter(
             recentSearches,
-            onRemoveClick = { searchQuery ->
-                removeRecentSearch(searchQuery)
+            onRemoveClick = { search ->
+                removeRecentSearch(search.id)
             },
-            onClick = { searchQuery ->
-                findViewById<EditText>(R.id.Search).setText(searchQuery)
-                performSearch(searchQuery)
+            onClick = { search ->
+                findViewById<EditText>(R.id.Search).setText(search.username)
+                performSearch(search.username)
             }
         )
         recentSearchesRecyclerView.adapter = recentSearchesAdapter
 
-        // Set up RecyclerView for Searched Users
         val searchedUsersRecyclerView = findViewById<RecyclerView>(R.id.searchedUsersRecyclerView)
         searchedUsersRecyclerView.layoutManager = LinearLayoutManager(this)
         searchedUsersAdapter = SearchedUsersAdapter(
             searchedUsers,
-            currentUserId = userId,
-            onFollowClick = { userPair ->
-                sendFollowRequest(userPair.second) // Pass the userCredential
+            currentUserId = userId!!,
+            onFollowClick = { user ->
+                sendFollowRequest(user)
             }
         )
         searchedUsersRecyclerView.adapter = searchedUsersAdapter
 
-        // Load current user's data (for followers, following, and recent searches)
-        database.child(userId).addListenerForSingleValueEvent(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                currentUser = snapshot.getValue(userCredential::class.java)
-                currentUser?.let {
-                    // Load recent searches (top 3 latest)
-                    recentSearches.clear()
-                    recentSearches.addAll(it.recentSearches.take(3))
-                    recentSearchesAdapter.notifyDataSetChanged()
+        loadRecentSearches()
 
-                    // Load all users for searching
-                    loadAllUsers()
-                }
-            }
-
-            override fun onCancelled(error: DatabaseError) {
-                Toast.makeText(this@SearchPage, "Failed to load user data: ${error.message}", Toast.LENGTH_SHORT).show()
-            }
-        })
-
-        // Search button click listener
         val searchButton = findViewById<Button>(R.id.SearchLogo)
         val searchEditText = findViewById<EditText>(R.id.Search)
         searchButton.setOnClickListener {
             val query = searchEditText.text.toString().trim()
             if (query.isNotEmpty()) {
                 performSearch(query)
-                // Add to recent searches
-                addRecentSearch(query)
             } else {
                 Toast.makeText(this, "Please enter a search query", Toast.LENGTH_SHORT).show()
             }
         }
 
-        // Filter buttons
         val filterAll = findViewById<Button>(R.id.FilterAll)
         val filterFollowers = findViewById<Button>(R.id.FilterFollowers)
         val filterFollowing = findViewById<Button>(R.id.FilterFollowing)
@@ -125,89 +137,128 @@ class SearchPage : AppCompatActivity() {
             applyFilter()
         }
 
-        // Navigation buttons (unchanged)
-        val myBtn = findViewById<Button>(R.id.myBtn)
-        myBtn.setOnClickListener {
-            // Already on SearchPage, no need to start a new instance
+        findViewById<Button>(R.id.myBtn).setOnClickListener {
+            // Already on SearchPage
         }
 
-        val home = findViewById<Button>(R.id.Home)
-        home.setOnClickListener {
+        findViewById<Button>(R.id.Home).setOnClickListener {
             val intent = Intent(this, HomePage::class.java)
             startActivity(intent)
         }
 
-        val newPost = findViewById<ImageButton>(R.id.NewPost)
-        newPost.setOnClickListener {
+        findViewById<ImageButton>(R.id.NewPost).setOnClickListener {
             val intent = Intent(this, NewPostPage::class.java)
             startActivity(intent)
         }
 
-        val profile = findViewById<Button>(R.id.Profile)
-        profile.setOnClickListener {
+        findViewById<Button>(R.id.Profile).setOnClickListener {
             val intent = Intent(this, ProfilePage::class.java)
             startActivity(intent)
         }
 
-        val contact = findViewById<Button>(R.id.Contact)
-        contact.setOnClickListener {
+        findViewById<Button>(R.id.Contact).setOnClickListener {
             val intent = Intent(this, ContactPage::class.java)
             startActivity(intent)
         }
     }
 
-    private fun loadAllUsers() {
-        database.addListenerForSingleValueEvent(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                allUsers.clear()
-                for (userSnapshot in snapshot.children) {
-                    val userId = userSnapshot.key // Get the UID from the snapshot key
-                    val user = userSnapshot.getValue(userCredential::class.java)
-                    user?.let {
-                        allUsers.add(Pair(userId ?: "", it)) // Store UID and userCredential as a Pair
+    private fun loadRecentSearches() {
+        val localSearches = databaseHelper.getRecentSearches(userId!!.toLong())
+        recentSearches.clear()
+        recentSearches.addAll(localSearches.map {
+            RecentSearch(
+                id = it.id,
+                searchedUserId = it.searchedUserId.toString(),
+                username = it.username,
+                timestamp = it.timestamp
+            )
+        }.take(3))
+        recentSearchesAdapter.notifyDataSetChanged()
+        if (recentSearches.isEmpty()) {
+            Toast.makeText(this, "No recent searches available", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun performSearch(query: String) {
+        apiService.searchUsers(query, userId!!, "Bearer $token").enqueue(object : Callback<SearchUsersResponse> {
+            override fun onResponse(call: Call<SearchUsersResponse>, response: Response<SearchUsersResponse>) {
+                if (response.isSuccessful) {
+                    val result = response.body()
+                    if (result?.status == "success") {
+                        allUsers.clear()
+                        allUsers.addAll(result.users.sortedBy { it.username.lowercase() })
+                        searchedUsers.clear()
+                        searchedUsers.addAll(allUsers)
+                        applyFilter()
+                        result.users.forEach { user ->
+                            databaseHelper.insertOrUpdateUser(
+                                LocalUser(
+                                    userId = user.userId.toLong(),
+                                    name = user.name,
+                                    username = user.username,
+                                    phoneNumber = "",
+                                    email = "",
+                                    bio = null,
+                                    profileImage = user.profileImage,
+                                    postsCount = 0,
+                                    followersCount = if (user.isFollowing) 1 else 0,
+                                    followingCount = 0
+                                )
+                            )
+                        }
+                        if (result.users.isNotEmpty()) {
+                            addRecentSearch(result.users.first())
+                        }
+                    } else {
+                        Toast.makeText(this@SearchPage, result?.message ?: "No users found", Toast.LENGTH_SHORT).show()
+                        loadUsersFromSQLite(query)
                     }
+                } else {
+                    Toast.makeText(this@SearchPage, "Failed to search users: ${response.message()}", Toast.LENGTH_SHORT).show()
+                    loadUsersFromSQLite(query)
                 }
             }
 
-            override fun onCancelled(error: DatabaseError) {
-                Toast.makeText(this@SearchPage, "Failed to load users: ${error.message}", Toast.LENGTH_SHORT).show()
+            override fun onFailure(call: Call<SearchUsersResponse>, t: Throwable) {
+                Toast.makeText(this@SearchPage, "Network error: ${t.message}", Toast.LENGTH_SHORT).show()
+                loadUsersFromSQLite(query)
             }
         })
     }
 
-    private fun performSearch(query: String) {
-        val filteredUsers = allUsers.filter { userPair ->
-            userPair.second.username.lowercase().contains(query.lowercase())
-        }.sortedBy { it.second.username.lowercase() }.toMutableList()
-
+    private fun loadUsersFromSQLite(query: String) {
+        val localUsers = databaseHelper.getUsersByUsername(query)
+        allUsers.clear()
+        allUsers.addAll(localUsers.map {
+            SearchUser(
+                userId = it.userId.toString(),
+                username = it.username,
+                name = it.name,
+                profileImage = it.profileImage,
+                isFollowing = it.followersCount > 0
+            )
+        }.sortedBy { it.username.lowercase() })
         searchedUsers.clear()
-        searchedUsers.addAll(filteredUsers)
+        searchedUsers.addAll(allUsers)
         applyFilter()
+        if (allUsers.isEmpty()) {
+            Toast.makeText(this, "No users found offline", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun applyFilter() {
-        val currentUserId = auth.currentUser?.uid ?: return
         val filteredList = when (currentFilter) {
             "All" -> searchedUsers.toList()
-            "Followers" -> searchedUsers.filter { userPair ->
-                // Check if the searched user's UID is in the current user's followers list
-                currentUser?.followers?.contains(userPair.first) == true
-            }
-            "Following" -> searchedUsers.filter { userPair ->
-                // Check if the current user's UID is in the searched user's followers list
-                // (This means the current user is following the searched user)
-                userPair.second.followers.contains(currentUserId)
-            }
+            "Followers" -> searchedUsers.filter { it.isFollowing }
+            "Following" -> searchedUsers.filter { it.isFollowing }
             else -> searchedUsers.toList()
         }
-
         searchedUsers.clear()
         searchedUsers.addAll(filteredList)
         searchedUsersAdapter.notifyDataSetChanged()
     }
 
     private fun updateFilterButtons(filterAll: Button, filterFollowers: Button, filterFollowing: Button) {
-        // Reset all buttons to unselected state
         filterAll.setBackgroundResource(R.drawable.rectangle_button_unselected)
         filterAll.setTextColor(getColor(R.color.brown))
         filterFollowers.setBackgroundResource(R.drawable.rectangle_button_unselected)
@@ -215,7 +266,6 @@ class SearchPage : AppCompatActivity() {
         filterFollowing.setBackgroundResource(R.drawable.rectangle_button_unselected)
         filterFollowing.setTextColor(getColor(R.color.brown))
 
-        // Set selected state for the current filter
         when (currentFilter) {
             "All" -> {
                 filterAll.setBackgroundResource(R.drawable.rectangle_button_green)
@@ -232,87 +282,56 @@ class SearchPage : AppCompatActivity() {
         }
     }
 
-    private fun addRecentSearch(query: String) {
-        if (recentSearches.contains(query)) {
-            recentSearches.remove(query)
+    private fun addRecentSearch(user: SearchUser) {
+        val existingSearch = recentSearches.find { it.searchedUserId == user.userId }
+        if (existingSearch != null) {
+            recentSearches.remove(existingSearch)
         }
-        recentSearches.add(0, query) // Add to the top
-        if (recentSearches.size > 3) { // Limit to 3 recent searches
+        val newSearch = RecentSearch(
+            id = UUID.randomUUID().toString(),
+            searchedUserId = user.userId,
+            username = user.username,
+            timestamp = System.currentTimeMillis()
+        )
+        recentSearches.add(0, newSearch)
+        if (recentSearches.size > 3) {
             recentSearches.removeAt(recentSearches.size - 1)
         }
         recentSearchesAdapter.notifyDataSetChanged()
-
-        // Update recent searches in Firebase
-        val userId = auth.currentUser?.uid ?: return
-        database.child(userId).child("recentSearches").setValue(recentSearches)
-            .addOnFailureListener {
-                Toast.makeText(this, "Failed to save recent search", Toast.LENGTH_SHORT).show()
-            }
+        databaseHelper.insertOrUpdateRecentSearch(
+            LocalRecentSearch(
+                id = newSearch.id,
+                userId = userId!!.toLong(),
+                searchedUserId = user.userId.toLong(),
+                username = user.username,
+                timestamp = newSearch.timestamp
+            )
+        )
     }
 
-    private fun removeRecentSearch(query: String) {
-        recentSearches.remove(query)
+    private fun removeRecentSearch(searchId: String) {
+        recentSearches.removeIf { it.id == searchId }
         recentSearchesAdapter.notifyDataSetChanged()
-
-        // Update recent searches in Firebase
-        val userId = auth.currentUser?.uid ?: return
-        database.child(userId).child("recentSearches").setValue(recentSearches)
-            .addOnFailureListener {
-                Toast.makeText(this, "Failed to remove recent search", Toast.LENGTH_SHORT).show()
-            }
+        databaseHelper.deleteRecentSearch(searchId)
     }
 
-    private fun sendFollowRequest(user: userCredential) {
-        val currentUserId = auth.currentUser?.uid ?: return
-        val targetUsername = user.username
-
-        // Check if the user is trying to follow themselves by comparing usernames first
-        if (currentUser?.username == targetUsername) {
-            Toast.makeText(this@SearchPage, "You can't follow yourself", Toast.LENGTH_SHORT).show()
+    private fun sendFollowRequest(user: SearchUser) {
+        if (user.userId == userId) {
+            Toast.makeText(this, "You can't follow yourself", Toast.LENGTH_SHORT).show()
             return
         }
-
-        // Search for the user in RegisteredUsers by username
-        database.orderByChild("username").equalTo(targetUsername).addListenerForSingleValueEvent(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                if (snapshot.exists()) {
-                    // There should be only one user with this username (usernames are typically unique)
-                    for (userSnapshot in snapshot.children) {
-                        val targetUserId = userSnapshot.key ?: return@onDataChange
-                        // Double-check using UIDs to ensure the user isn't following themselves
-                        if (currentUserId == targetUserId) {
-                            Toast.makeText(this@SearchPage, "You can't follow yourself", Toast.LENGTH_SHORT).show()
-                            return@onDataChange
-                        }
-                        // Get the current pendingFollowRequests list
-                        database.child(targetUserId).child("pendingFollowRequests").get().addOnSuccessListener { requestSnapshot ->
-                            val pendingRequests = requestSnapshot.getValue(object : GenericTypeIndicator<List<String>>() {})?.toMutableList() ?: mutableListOf()
-                            if (!pendingRequests.contains(currentUserId)) {
-                                pendingRequests.add(currentUserId)
-                                // Update the pendingFollowRequests list in Firebase
-                                database.child(targetUserId).child("pendingFollowRequests").setValue(pendingRequests)
-                                    .addOnSuccessListener {
-                                        Toast.makeText(this@SearchPage, "Follow request sent to $targetUsername", Toast.LENGTH_SHORT).show()
-                                        // Update UI to reflect the change
-                                        searchedUsersAdapter.notifyDataSetChanged()
-                                    }
-                                    .addOnFailureListener {
-                                        Toast.makeText(this@SearchPage, "Failed to send follow request", Toast.LENGTH_SHORT).show()
-                                    }
-                            } else {
-                                Toast.makeText(this@SearchPage, "Follow request already sent to $targetUsername", Toast.LENGTH_SHORT).show()
-                            }
-                        }.addOnFailureListener {
-                            Toast.makeText(this@SearchPage, "Failed to fetch pending requests", Toast.LENGTH_SHORT).show()
-                        }
-                    }
+        apiService.followUser(userId!!, user.userId, "Bearer $token").enqueue(object : Callback<GenericResponse> {
+            override fun onResponse(call: Call<GenericResponse>, response: Response<GenericResponse>) {
+                if (response.isSuccessful && response.body()?.status == "success") {
+                    Toast.makeText(this@SearchPage, "Follow request sent to ${user.username}", Toast.LENGTH_SHORT).show()
+                    searchedUsersAdapter.notifyDataSetChanged()
                 } else {
-                    Toast.makeText(this@SearchPage, "User $targetUsername not found", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@SearchPage, response.body()?.message ?: "Failed to send follow request", Toast.LENGTH_SHORT).show()
                 }
             }
 
-            override fun onCancelled(error: DatabaseError) {
-                Toast.makeText(this@SearchPage, "Failed to search for user: ${error.message}", Toast.LENGTH_SHORT).show()
+            override fun onFailure(call: Call<GenericResponse>, t: Throwable) {
+                Toast.makeText(this@SearchPage, "Network error: ${t.message}", Toast.LENGTH_SHORT).show()
             }
         })
     }

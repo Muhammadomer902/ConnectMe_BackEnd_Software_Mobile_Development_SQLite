@@ -8,9 +8,9 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 
 class RecentSearchesAdapter(
-    private val recentSearches: MutableList<String>,
-    private val onRemoveClick: (String) -> Unit,
-    private val onClick: (String) -> Unit
+    private val recentSearches: MutableList<RecentSearch>,
+    private val onRemoveClick: (RecentSearch) -> Unit,
+    private val onClick: (RecentSearch) -> Unit
 ) : RecyclerView.Adapter<RecentSearchesAdapter.ViewHolder>() {
 
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -25,13 +25,13 @@ class RecentSearchesAdapter(
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val searchQuery = recentSearches[position]
-        holder.usernameTextView.text = searchQuery
+        val search = recentSearches[position]
+        holder.usernameTextView.text = search.username
         holder.crossIcon.setOnClickListener {
-            onRemoveClick(searchQuery)
+            onRemoveClick(search)
         }
         holder.itemView.setOnClickListener {
-            onClick(searchQuery)
+            onClick(search)
         }
     }
 

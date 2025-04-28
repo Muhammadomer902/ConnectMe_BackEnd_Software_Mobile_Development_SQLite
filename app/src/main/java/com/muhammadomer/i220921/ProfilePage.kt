@@ -21,6 +21,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 import okhttp3.logging.HttpLoggingInterceptor
 import okhttp3.OkHttpClient
 import java.net.URL
+import com.google.gson.Gson
 
 class ProfilePage : AppCompatActivity() {
 
@@ -44,7 +45,6 @@ class ProfilePage : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_profile_page)
 
-        // Initialize Retrofit
         val logging = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
         }
@@ -58,10 +58,8 @@ class ProfilePage : AppCompatActivity() {
             .build()
         apiService = retrofit.create(ApiService::class.java)
 
-        // Initialize DatabaseHelper
         databaseHelper = DatabaseHelper(this)
 
-        // Get userId and token from SharedPreferences
         val sharedPref = getSharedPreferences("ConnectMePrefs", MODE_PRIVATE)
         userId = sharedPref.getString("userId", null)
         token = sharedPref.getString("token", null)
@@ -74,7 +72,6 @@ class ProfilePage : AppCompatActivity() {
 
         Log.d("ProfilePage", "UserId: $userId, Token: $token")
 
-        // Initialize UI elements
         profileImage = findViewById(R.id.ProfilePic)
         nameTextView = findViewById(R.id.Name)
         bioTextView = findViewById(R.id.Bio)
@@ -85,73 +82,77 @@ class ProfilePage : AppCompatActivity() {
         logoutButton = findViewById(R.id.LogoutButton)
         postRecyclerView = findViewById(R.id.postRecyclerView)
 
-        // Set up RecyclerView
         postAdapter = ProfilePostAdapter()
-        postRecyclerView.layoutManager = GridLayoutManager(this, 3) // 3 columns for a grid layout
+        postRecyclerView.layoutManager = GridLayoutManager(this, 3)
         postRecyclerView.adapter = postAdapter
 
-        // Load user data and posts
         loadUserData()
         loadUserPosts()
 
-        // Set click listeners
         editProfileButton.setOnClickListener {
             val intent = Intent(this, EditProfilePage::class.java)
             startActivity(intent)
         }
 
         logoutButton.setOnClickListener {
-            // Clear SharedPreferences and SQLite, then navigate to login
-            databaseHelper.clearUserData()
-            val editor = sharedPref.edit()
-            editor.clear()
-            editor.apply()
-            Toast.makeText(this, "Logged out successfully", Toast.LENGTH_SHORT).show()
-            navigateToLogin()
+            apiService.logout(userId!!, "Bearer $token").enqueue(object : Callback<GenericResponse> {
+                override fun onResponse(call: Call<GenericResponse>, response: Response<GenericResponse>) {
+                    databaseHelper.clearUserData()
+                    val editor = sharedPref.edit()
+                    editor.clear()
+                    editor.apply()
+                    Toast.makeText(this@ProfilePage, "Logged out successfully", Toast.LENGTH_SHORT).show()
+                    navigateToLogin()
+                }
+
+                override fun onFailure(call: Call<GenericResponse>, t: Throwable) {
+                    databaseHelper.clearUserData()
+                    val editor = sharedPref.edit()
+                    editor.clear()
+                    editor.apply()
+                    Toast.makeText(this@ProfilePage, "Logged out successfully (offline)", Toast.LENGTH_SHORT).show()
+                    navigateToLogin()
+                }
+            })
         }
 
-        // Bottom navigation bar click listeners (placeholders)
         findViewById<Button>(R.id.Home).setOnClickListener {
-            // Navigate to HomePage
-            Toast.makeText(this, "Navigate to Home", Toast.LENGTH_SHORT).show()
+            val intent = Intent(this, HomePage::class.java)
+            startActivity(intent)
         }
 
         findViewById<Button>(R.id.Search).setOnClickListener {
-            // Navigate to SearchPage
-            Toast.makeText(this, "Navigate to Search", Toast.LENGTH_SHORT).show()
+            val intent = Intent(this, SearchPage::class.java)
+            startActivity(intent)
         }
 
         findViewById<ImageButton>(R.id.NewPost).setOnClickListener {
-            // Navigate to NewPostPage
-            Toast.makeText(this, "Navigate to New Post", Toast.LENGTH_SHORT).show()
+            val intent = Intent(this, NewPostPage::class.java)
+            startActivity(intent)
         }
 
         findViewById<Button>(R.id.myBtn).setOnClickListener {
-            // Already on ProfilePage, refresh or do nothing
             Toast.makeText(this, "Already on Profile", Toast.LENGTH_SHORT).show()
         }
 
         findViewById<Button>(R.id.Contact).setOnClickListener {
-            // Navigate to ContactPage
-            Toast.makeText(this, "Navigate to Contact", Toast.LENGTH_SHORT).show()
+            val intent = Intent(this, ContactPage::class.java)
+            startActivity(intent)
         }
     }
 
     private fun loadUserData() {
-        // Try to load from API first
         apiService.getUser(userId!!, "Bearer $token").enqueue(object : Callback<UserResponse> {
             override fun onResponse(call: Call<UserResponse>, response: Response<UserResponse>) {
                 if (response.isSuccessful) {
                     val user = response.body()
                     user?.let {
-                        // Update UI with user data
                         nameTextView.text = it.name ?: "Unknown"
                         bioTextView.text = it.bio.takeIf { b -> b?.isNotEmpty() == true } ?: ""
                         postNumTextView.text = (it.postsCount ?: 0).toString()
                         followerButton.text = (it.followersCount ?: 0).toString()
                         followingButton.text = (it.followingCount ?: 0).toString()
 
-                        // Load profile image using Bitmap
                         if (!it.profileImage.isNullOrEmpty()) {
                             Thread {
                                 try {
@@ -171,7 +172,6 @@ class ProfilePage : AppCompatActivity() {
                             profileImage.setImageResource(R.drawable.dummyprofilepic)
                         }
 
-                        // Update SQLite with API data
                         val localUser = LocalUser(
                             userId = userId!!.toLong(),
                             name = it.name ?: "",
@@ -187,16 +187,15 @@ class ProfilePage : AppCompatActivity() {
                         databaseHelper.insertOrUpdateUser(localUser)
                     }
                 } else {
-                    val errorBody = response.errorBody()?.string() ?: "No error body"
-                    Log.e("ProfilePage", "Failed to load user data: ${response.code()} - ${response.message()} - $errorBody")
-                    Toast.makeText(this@ProfilePage, "Failed to load user data from API, trying local storage: ${response.message()}", Toast.LENGTH_LONG).show()
+                    Log.e("ProfilePage", "Failed to load user data: ${response.message()}")
+                    Toast.makeText(this@ProfilePage, "Failed to load user data from API, trying local storage", Toast.LENGTH_LONG).show()
                     loadUserDataFromSQLite()
                 }
             }
 
             override fun onFailure(call: Call<UserResponse>, t: Throwable) {
                 Log.e("ProfilePage", "Network error: ${t.message}")
-                Toast.makeText(this@ProfilePage, "Network error, trying local storage: ${t.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@ProfilePage, "Network error, trying local storage", Toast.LENGTH_SHORT).show()
                 loadUserDataFromSQLite()
             }
         })
@@ -241,22 +240,58 @@ class ProfilePage : AppCompatActivity() {
                     val postsResponse = response.body()
                     if (postsResponse?.status == "success") {
                         val posts = postsResponse.posts
+                        posts.forEach { post ->
+                            val localPost = LocalPost(
+                                postId = post.postId ?: "",
+                                userId = userId!!.toLong(),
+                                imageUrls = Gson().toJson(post.imageUrls),
+                                caption = post.caption,
+                                timestamp = post.timestamp ?: 0,
+                                likes = Gson().toJson(post.likes)
+                            )
+                            databaseHelper.insertOrUpdatePost(localPost)
+                        }
                         postAdapter.submitPosts(posts)
                     } else {
                         Toast.makeText(this@ProfilePage, postsResponse?.message ?: "Failed to load posts", Toast.LENGTH_SHORT).show()
+                        loadPostsFromSQLite()
                     }
                 } else {
-                    val errorBody = response.errorBody()?.string() ?: "No error body"
-                    Log.e("ProfilePage", "Failed to load posts: ${response.code()} - ${response.message()} - $errorBody")
-                    Toast.makeText(this@ProfilePage, "Failed to load posts: ${response.message()}", Toast.LENGTH_LONG).show()
+                    Log.e("ProfilePage", "Failed to load posts: ${response.message()}")
+                    Toast.makeText(this@ProfilePage, "Failed to load posts, trying local storage", Toast.LENGTH_LONG).show()
+                    loadPostsFromSQLite()
                 }
             }
 
             override fun onFailure(call: Call<PostsResponse>, t: Throwable) {
                 Log.e("ProfilePage", "Network error: ${t.message}")
                 Toast.makeText(this@ProfilePage, "Network error: ${t.message}", Toast.LENGTH_SHORT).show()
+                loadPostsFromSQLite()
             }
         })
+    }
+
+    private fun loadPostsFromSQLite() {
+        val localUser = databaseHelper.getUserById(userId!!.toLong())
+        if (localUser != null) {
+            val localPosts = databaseHelper.getPostsByUserIds(listOf(userId!!.toLong()))
+            val posts = localPosts.map { localPost ->
+                Post(
+                    postId = localPost.postId,
+                    imageUrls = Gson().fromJson(localPost.imageUrls, Array<String>::class.java).toList(),
+                    caption = localPost.caption,
+                    timestamp = localPost.timestamp,
+                    likes = Gson().fromJson(localPost.likes, Array<String>::class.java).toList(),
+                    comments = emptyList()
+                )
+            }
+            postAdapter.submitPosts(posts)
+            if (posts.isEmpty()) {
+                Toast.makeText(this, "No posts available offline", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            Toast.makeText(this, "No user data available offline", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun navigateToLogin() {
