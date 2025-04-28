@@ -36,6 +36,8 @@ class NewPostPage : AppCompatActivity() {
     private lateinit var cameraExecutor: ExecutorService
     private val imagePaths = mutableListOf<String>()
 
+    private lateinit var databaseHelper: DatabaseHelper
+
     // Permission launcher
     private val permissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
         if (isGranted) {
@@ -49,11 +51,9 @@ class NewPostPage : AppCompatActivity() {
     // Gallery launcher
     private val galleryLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let {
-            // Get the Bitmap from the URI
             val bitmap = MediaStore.Images.Media.getBitmap(contentResolver, it)
-            selectedBitmap?.recycle() // Recycle the previous Bitmap if it exists
+            selectedBitmap?.recycle()
 
-            // Get the correct orientation from EXIF data and rotate the Bitmap
             val inputStream = contentResolver.openInputStream(uri)
             val exif = inputStream?.let { ExifInterface(it) }
             val orientation = exif?.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
@@ -65,7 +65,6 @@ class NewPostPage : AppCompatActivity() {
             }
             inputStream?.close()
 
-            // Rotate the Bitmap if needed
             val rotatedBitmap = if (rotationDegrees != 0f) {
                 rotateBitmap(bitmap, rotationDegrees)
             } else {
@@ -73,13 +72,11 @@ class NewPostPage : AppCompatActivity() {
             }
 
             selectedBitmap = rotatedBitmap
-            // Set the image as the full-screen background
             fullScreenImage.setImageBitmap(rotatedBitmap)
             fullScreenImage.visibility = View.VISIBLE
             clickPicture.visibility = View.VISIBLE
             cameraPreview.visibility = View.GONE
 
-            // Save the rotated bitmap to a temporary file
             val filePath = saveBitmapToTempFile(rotatedBitmap)
             if (filePath != null) {
                 imagePaths.add(filePath)
@@ -91,6 +88,8 @@ class NewPostPage : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_new_post_page)
+
+        databaseHelper = DatabaseHelper(this)
 
         cameraPreview = findViewById(R.id.cameraPreview)
         clickPicture = findViewById(R.id.ClickPicture)
@@ -123,15 +122,9 @@ class NewPostPage : AppCompatActivity() {
 
         val myBtn = findViewById<Button>(R.id.myBtn)
         myBtn.setOnClickListener {
-            val intent = Intent(this, NewPostPage::class.java)
+            val intent = Intent(this, ProfilePage::class.java)
             startActivity(intent)
-
-            imagePaths.clear()
-            selectedBitmap?.recycle()
-            selectedBitmap = null
-            fullScreenImage.setImageBitmap(null)
-            fullScreenImage.visibility = View.GONE
-
+            cleanup()
             finish()
         }
 
@@ -139,6 +132,7 @@ class NewPostPage : AppCompatActivity() {
         cancel.setOnClickListener {
             val intent = Intent(this, HomePage::class.java)
             startActivity(intent)
+            cleanup()
             finish()
         }
 
@@ -146,6 +140,8 @@ class NewPostPage : AppCompatActivity() {
         post.setOnClickListener {
             val intent = Intent(this, NewStoryPage::class.java)
             startActivity(intent)
+            cleanup()
+            finish()
         }
 
         val gallery = findViewById<Button>(R.id.Gallery)
@@ -159,16 +155,10 @@ class NewPostPage : AppCompatActivity() {
                 val intent = Intent(this, FinalizePostPage::class.java)
                 intent.putStringArrayListExtra("imagePaths", ArrayList(imagePaths))
                 startActivity(intent)
-
-                imagePaths.clear()
-                selectedBitmap?.recycle()
-                selectedBitmap = null
-                fullScreenImage.setImageBitmap(null)
-                fullScreenImage.visibility = View.GONE
-
+                cleanup()
                 finish()
             } else {
-                android.widget.Toast.makeText(this, "Please capture or select an image first", android.widget.Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Please capture or select an image first", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -211,9 +201,8 @@ class NewPostPage : AppCompatActivity() {
             object : ImageCapture.OnImageCapturedCallback() {
                 override fun onCaptureSuccess(image: ImageProxy) {
                     val bitmap = image.toBitmap()
-                    selectedBitmap?.recycle() // Recycle the previous Bitmap if it exists
+                    selectedBitmap?.recycle()
 
-                    // Rotate the Bitmap based on the image's rotation degrees
                     val rotationDegrees = image.imageInfo.rotationDegrees.toFloat()
                     val rotatedBitmap = if (rotationDegrees != 0f) {
                         rotateBitmap(bitmap, rotationDegrees)
@@ -225,7 +214,6 @@ class NewPostPage : AppCompatActivity() {
                         }
                     }
 
-                    // If using the front camera, mirror the image to correct the default mirroring
                     val finalBitmap = if (isFrontCamera) {
                         mirrorBitmap(rotatedBitmap)
                     } else {
@@ -233,14 +221,12 @@ class NewPostPage : AppCompatActivity() {
                     }
 
                     selectedBitmap = finalBitmap
-                    // Set the image as the full-screen background
                     fullScreenImage.setImageBitmap(finalBitmap)
                     fullScreenImage.visibility = View.VISIBLE
                     clickPicture.visibility = View.VISIBLE
                     cameraPreview.visibility = View.GONE
                     image.close()
 
-                    // Save the final bitmap to a temporary file
                     val filePath = saveBitmapToTempFile(finalBitmap)
                     if (filePath != null) {
                         imagePaths.add(filePath)
@@ -255,47 +241,40 @@ class NewPostPage : AppCompatActivity() {
         )
     }
 
-    // Utility to convert ImageProxy to Bitmap
     private fun ImageProxy.toBitmap(): Bitmap {
-        val image = this
-        val buffer = image.planes[0].buffer
+        val buffer = planes[0].buffer
         val bytes = ByteArray(buffer.remaining())
         buffer.get(bytes)
 
-        // Check if the image format is YUV_420_888 (common for CameraX)
-        if (image.format == android.graphics.ImageFormat.YUV_420_888) {
+        if (format == android.graphics.ImageFormat.YUV_420_888) {
             val yuvImage = android.graphics.YuvImage(
                 bytes,
                 android.graphics.ImageFormat.NV21,
-                image.width,
-                image.height,
+                width,
+                height,
                 null
             )
             val out = ByteArrayOutputStream()
-            yuvImage.compressToJpeg(android.graphics.Rect(0, 0, image.width, image.height), 100, out)
+            yuvImage.compressToJpeg(android.graphics.Rect(0, 0, width, height), 100, out)
             val jpegBytes = out.toByteArray()
             return BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size)
         } else {
-            // Fallback for other formats (e.g., JPEG)
             return BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
         }
     }
 
-    // Utility to rotate a Bitmap
     private fun rotateBitmap(bitmap: Bitmap, degrees: Float): Bitmap {
         val matrix = Matrix()
         matrix.postRotate(degrees)
         return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
     }
 
-    // Utility to mirror a Bitmap (for front camera)
     private fun mirrorBitmap(bitmap: Bitmap): Bitmap {
         val matrix = Matrix()
-        matrix.postScale(-1f, 1f, bitmap.width / 2f, bitmap.height / 2f) // Mirror horizontally
+        matrix.postScale(-1f, 1f, bitmap.width / 2f, bitmap.height / 2f)
         return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
     }
 
-    // Utility to save Bitmap to a temporary file
     private fun saveBitmapToTempFile(bitmap: Bitmap): String? {
         return try {
             val tempFile = File.createTempFile("image_", ".jpg", cacheDir)
@@ -310,11 +289,23 @@ class NewPostPage : AppCompatActivity() {
         }
     }
 
+    private fun cleanup() {
+        imagePaths.forEach { path ->
+            val file = File(path)
+            if (file.exists()) {
+                file.delete()
+            }
+        }
+        imagePaths.clear()
+        selectedBitmap?.recycle()
+        selectedBitmap = null
+        fullScreenImage.setImageBitmap(null)
+        fullScreenImage.visibility = View.GONE
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         cameraExecutor.shutdown()
-        selectedBitmap?.recycle()
-        selectedBitmap = null
-        // Removed file deletion logic; it will be handled in FinalizePostPage
+        cleanup()
     }
 }

@@ -8,7 +8,6 @@ import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.os.Bundle
 import android.provider.MediaStore
-import android.util.Base64
 import android.view.View
 import android.widget.Button
 import android.widget.ImageView
@@ -21,14 +20,23 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import androidx.exifinterface.media.ExifInterface
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.database.*
+import com.google.gson.Gson
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import okhttp3.logging.HttpLoggingInterceptor
+import okhttp3.OkHttpClient
+import java.io.File
+import java.io.FileOutputStream
 import java.io.ByteArrayOutputStream
+import java.util.UUID
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
-
-// Update the import for StoryInfo
-import com.muhammadomer.i220921.StoryInfo
 
 class NewStoryPage : AppCompatActivity() {
     private lateinit var cameraPreview: PreviewView
@@ -39,8 +47,10 @@ class NewStoryPage : AppCompatActivity() {
     private var selectedBitmap: Bitmap? = null
     private var imageCapture: ImageCapture? = null
     private lateinit var cameraExecutor: ExecutorService
-    private lateinit var auth: FirebaseAuth
-    private lateinit var database: DatabaseReference
+    private lateinit var apiService: ApiService
+    private lateinit var databaseHelper: DatabaseHelper
+    private var userId: String? = null
+    private var token: String? = null
 
     // Permission launcher
     private val permissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
@@ -55,11 +65,9 @@ class NewStoryPage : AppCompatActivity() {
     // Gallery launcher
     private val galleryLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let {
-            // Get the Bitmap from the URI
             val bitmap = MediaStore.Images.Media.getBitmap(contentResolver, it)
-            selectedBitmap?.recycle() // Recycle the previous Bitmap if it exists
+            selectedBitmap?.recycle()
 
-            // Get the correct orientation from EXIF data and rotate the Bitmap
             val inputStream = contentResolver.openInputStream(uri)
             val exif = inputStream?.let { ExifInterface(it) }
             val orientation = exif?.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
@@ -71,7 +79,6 @@ class NewStoryPage : AppCompatActivity() {
             }
             inputStream?.close()
 
-            // Rotate the Bitmap if needed
             val rotatedBitmap = if (rotationDegrees != 0f) {
                 rotateBitmap(bitmap, rotationDegrees)
             } else {
@@ -79,7 +86,6 @@ class NewStoryPage : AppCompatActivity() {
             }
 
             selectedBitmap = rotatedBitmap
-            // Set the image as the full-screen background
             fullScreenImage.setImageBitmap(rotatedBitmap)
             fullScreenImage.visibility = View.VISIBLE
             clickPicture.visibility = View.VISIBLE
@@ -92,10 +98,33 @@ class NewStoryPage : AppCompatActivity() {
         enableEdgeToEdge()
         setContentView(R.layout.activity_new_story_page)
 
-        // Initialize Firebase Auth and Database
-        auth = FirebaseAuth.getInstance()
-        database = FirebaseDatabase.getInstance().getReference("RegisteredUsers")
-        val userId = auth.currentUser?.uid ?: return
+        val logging = HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BODY
+        }
+        val client = OkHttpClient.Builder()
+            .addInterceptor(logging)
+            .build()
+        val retrofit = Retrofit.Builder()
+            .baseUrl("http://192.168.2.11/CONNECTME-API/api/")
+            .client(client)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+        apiService = retrofit.create(ApiService::class.java)
+
+        databaseHelper = DatabaseHelper(this)
+
+        val sharedPref = getSharedPreferences("ConnectMePrefs", MODE_PRIVATE)
+        userId = sharedPref.getString("userId", null)
+        token = sharedPref.getString("token", null)
+
+        if (userId == null || token == null) {
+            Toast.makeText(this, "User not authenticated", Toast.LENGTH_SHORT).show()
+            val intent = Intent(this, LogInPage::class.java)
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            startActivity(intent)
+            finish()
+            return
+        }
 
         cameraPreview = findViewById(R.id.cameraPreview)
         clickPicture = findViewById(R.id.ClickPicture)
@@ -128,14 +157,9 @@ class NewStoryPage : AppCompatActivity() {
 
         val myBtn = findViewById<Button>(R.id.myBtn)
         myBtn.setOnClickListener {
-            val intent = Intent(this, NewStoryPage::class.java)
+            val intent = Intent(this, ProfilePage::class.java)
             startActivity(intent)
-
-            selectedBitmap?.recycle()
-            selectedBitmap = null
-            fullScreenImage.setImageBitmap(null)
-            fullScreenImage.visibility = View.GONE
-
+            cleanup()
             finish()
         }
 
@@ -143,6 +167,7 @@ class NewStoryPage : AppCompatActivity() {
         cancel.setOnClickListener {
             val intent = Intent(this, HomePage::class.java)
             startActivity(intent)
+            cleanup()
             finish()
         }
 
@@ -150,6 +175,7 @@ class NewStoryPage : AppCompatActivity() {
         post.setOnClickListener {
             val intent = Intent(this, NewPostPage::class.java)
             startActivity(intent)
+            cleanup()
             finish()
         }
 
@@ -161,52 +187,7 @@ class NewStoryPage : AppCompatActivity() {
         val finalizePost = findViewById<Button>(R.id.FinalizePost)
         finalizePost.setOnClickListener {
             if (selectedBitmap != null) {
-                // Convert the bitmap to a Base64 string
-                val bitmapString = bitmapToBase64(selectedBitmap!!)
-
-                // Create a new story
-                val storyId = FirebaseDatabase.getInstance().getReference("Stories").push().key ?: return@setOnClickListener
-                val story = StoryInfo(
-                    storyId = storyId,
-                    bitmapString = bitmapString,
-                    timestamp = System.currentTimeMillis()
-                )
-
-                // Save the story to Firebase under Stories node
-                FirebaseDatabase.getInstance().getReference("Stories").child(storyId).setValue(story)
-                    .addOnSuccessListener {
-                        // Update the user's stories list (append the new story)
-                        database.child(userId).addListenerForSingleValueEvent(object : ValueEventListener {
-                            override fun onDataChange(snapshot: DataSnapshot) {
-                                val user = snapshot.getValue(userCredential::class.java)
-                                user?.let {
-                                    // Get the current stories list, or initialize an empty list if null
-                                    val currentStories = user.stories?.toMutableList() ?: mutableListOf()
-                                    // Append the new story ID
-                                    currentStories.add(storyId)
-                                    // Update the stories list in Firebase
-                                    database.child(userId).child("stories").setValue(currentStories)
-                                        .addOnSuccessListener {
-                                            Toast.makeText(this@NewStoryPage, "Story posted successfully", Toast.LENGTH_SHORT).show()
-                                            // Navigate to HomePage
-                                            val intent = Intent(this@NewStoryPage, HomePage::class.java)
-                                            startActivity(intent)
-                                            finish()
-                                        }
-                                        .addOnFailureListener { error ->
-                                            Toast.makeText(this@NewStoryPage, "Failed to update stories: ${error.message}", Toast.LENGTH_SHORT).show()
-                                        }
-                                }
-                            }
-
-                            override fun onCancelled(error: DatabaseError) {
-                                Toast.makeText(this@NewStoryPage, "Failed to fetch user data: ${error.message}", Toast.LENGTH_SHORT).show()
-                            }
-                        })
-                    }
-                    .addOnFailureListener { error ->
-                        Toast.makeText(this@NewStoryPage, "Failed to post story: ${error.message}", Toast.LENGTH_SHORT).show()
-                    }
+                uploadStory()
             } else {
                 Toast.makeText(this, "Please capture or select an image first", Toast.LENGTH_SHORT).show()
             }
@@ -251,9 +232,8 @@ class NewStoryPage : AppCompatActivity() {
             object : ImageCapture.OnImageCapturedCallback() {
                 override fun onCaptureSuccess(image: ImageProxy) {
                     val bitmap = image.toBitmap()
-                    selectedBitmap?.recycle() // Recycle the previous Bitmap if it exists
+                    selectedBitmap?.recycle()
 
-                    // Rotate the Bitmap based on the image's rotation degrees
                     val rotationDegrees = image.imageInfo.rotationDegrees.toFloat()
                     val rotatedBitmap = if (rotationDegrees != 0f) {
                         rotateBitmap(bitmap, rotationDegrees)
@@ -265,7 +245,6 @@ class NewStoryPage : AppCompatActivity() {
                         }
                     }
 
-                    // If using the front camera, mirror the image to correct the default mirroring
                     val finalBitmap = if (isFrontCamera) {
                         mirrorBitmap(rotatedBitmap)
                     } else {
@@ -273,7 +252,6 @@ class NewStoryPage : AppCompatActivity() {
                     }
 
                     selectedBitmap = finalBitmap
-                    // Set the image as the full-screen background
                     fullScreenImage.setImageBitmap(finalBitmap)
                     fullScreenImage.visibility = View.VISIBLE
                     clickPicture.visibility = View.VISIBLE
@@ -289,7 +267,6 @@ class NewStoryPage : AppCompatActivity() {
         )
     }
 
-    // Utility to convert ImageProxy to Bitmap
     private fun ImageProxy.toBitmap(): Bitmap {
         val buffer = planes[0].buffer
         val bytes = ByteArray(buffer.remaining())
@@ -312,32 +289,107 @@ class NewStoryPage : AppCompatActivity() {
         }
     }
 
-    // Utility to rotate a Bitmap
     private fun rotateBitmap(bitmap: Bitmap, degrees: Float): Bitmap {
         val matrix = Matrix()
         matrix.postRotate(degrees)
         return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
     }
 
-    // Utility to mirror a Bitmap (for front camera)
     private fun mirrorBitmap(bitmap: Bitmap): Bitmap {
         val matrix = Matrix()
-        matrix.postScale(-1f, 1f, bitmap.width / 2f, bitmap.height / 2f) // Mirror horizontally
+        matrix.postScale(-1f, 1f, bitmap.width / 2f, bitmap.height / 2f)
         return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
     }
 
-    // Utility to convert Bitmap to Base64 string
-    private fun bitmapToBase64(bitmap: Bitmap): String {
-        val byteArrayOutputStream = ByteArrayOutputStream()
-        bitmap.compress(Bitmap.CompressFormat.JPEG, 80, byteArrayOutputStream)
-        val byteArray = byteArrayOutputStream.toByteArray()
-        return Base64.encodeToString(byteArray, Base64.DEFAULT)
+    private fun uploadStory() {
+        val tempFile = File.createTempFile("story_", ".jpg", cacheDir)
+        val outputStream = FileOutputStream(tempFile)
+        selectedBitmap?.compress(Bitmap.CompressFormat.JPEG, 80, outputStream)
+        outputStream.flush()
+        outputStream.close()
+
+        val requestFile = tempFile.asRequestBody("image/jpeg".toMediaType())
+        val part = MultipartBody.Part.createFormData("image", tempFile.name, requestFile)
+
+        apiService.uploadPostImage(userId!!, "Bearer $token", part).enqueue(object : Callback<ImageUploadResponse> {
+            override fun onResponse(call: Call<ImageUploadResponse>, response: Response<ImageUploadResponse>) {
+                if (response.isSuccessful && response.body()?.status == "success") {
+                    val imageUrl = response.body()!!.imageUrl
+                    val storyId = UUID.randomUUID().toString()
+                    val timestamp = System.currentTimeMillis()
+                    val request = CreateStoryRequest(imageUrl = imageUrl, timestamp = timestamp)
+
+                    apiService.createStory(userId!!, "Bearer $token", request).enqueue(object : Callback<GenericResponse> {
+                        override fun onResponse(call: Call<GenericResponse>, response: Response<GenericResponse>) {
+                            if (response.isSuccessful && response.body()?.status == "success") {
+                                val localStory = LocalStory(
+                                    storyId = storyId,
+                                    userId = userId!!.toLong(),
+                                    imageUrl = imageUrl,
+                                    timestamp = timestamp
+                                )
+                                databaseHelper.insertOrUpdateStory(localStory)
+                                Toast.makeText(this@NewStoryPage, "Story posted successfully", Toast.LENGTH_SHORT).show()
+                                val intent = Intent(this@NewStoryPage, HomePage::class.java)
+                                startActivity(intent)
+                                cleanup()
+                                finish()
+                            } else {
+                                queueStory(storyId, imageUrl, timestamp)
+                            }
+                        }
+
+                        override fun onFailure(call: Call<GenericResponse>, t: Throwable) {
+                            queueStory(storyId, imageUrl, timestamp)
+                        }
+                    })
+                } else {
+                    queueStory(null, null, System.currentTimeMillis())
+                }
+                tempFile.delete()
+            }
+
+            override fun onFailure(call: Call<ImageUploadResponse>, t: Throwable) {
+                queueStory(null, null, System.currentTimeMillis())
+                tempFile.delete()
+            }
+        })
+    }
+
+    private fun queueStory(storyId: String?, imageUrl: String?, timestamp: Long) {
+        val action = QueuedAction(
+            actionId = UUID.randomUUID().toString(),
+            actionType = "create_story",
+            payload = Gson().toJson(CreateStoryRequest(
+                imageUrl = imageUrl ?: "",
+                timestamp = timestamp
+            )),
+            createdAt = System.currentTimeMillis()
+        )
+        databaseHelper.queueAction(action)
+        Toast.makeText(this, "Story queued for later sync", Toast.LENGTH_SHORT).show()
+
+        if (storyId != null && imageUrl != null) {
+            val localStory = LocalStory(
+                storyId = storyId,
+                userId = userId!!.toLong(),
+                imageUrl = imageUrl,
+                timestamp = timestamp
+            )
+            databaseHelper.insertOrUpdateStory(localStory)
+        }
+    }
+
+    private fun cleanup() {
+        selectedBitmap?.recycle()
+        selectedBitmap = null
+        fullScreenImage.setImageBitmap(null)
+        fullScreenImage.visibility = View.GONE
     }
 
     override fun onDestroy() {
         super.onDestroy()
         cameraExecutor.shutdown()
-        selectedBitmap?.recycle()
-        selectedBitmap = null
+        cleanup()
     }
 }

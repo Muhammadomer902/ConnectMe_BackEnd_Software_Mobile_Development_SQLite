@@ -17,43 +17,42 @@ class FinalizePostAdapter(private val imagePaths: List<String>) : RecyclerView.A
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ImageViewHolder {
         val view = LayoutInflater.from(parent.context).inflate(R.layout.finalize_post_image, parent, false)
-        Log.d("ImageAdapter", "Created ViewHolder for viewType: $viewType")
+        Log.d("FinalizePostAdapter", "Created ViewHolder for viewType: $viewType")
         return ImageViewHolder(view)
     }
 
     override fun onBindViewHolder(holder: ImageViewHolder, position: Int) {
         val imagePath = imagePaths[position]
-        Log.d("ImageAdapter", "Binding position $position with image path: $imagePath")
+        Log.d("FinalizePostAdapter", "Binding position $position with image path: $imagePath")
 
-        // Check if the file exists
         val file = File(imagePath)
         if (file.exists()) {
-            Log.d("ImageAdapter", "File exists at position $position: $imagePath")
+            Log.d("FinalizePostAdapter", "File exists at position $position: $imagePath")
+            val bitmap = BitmapFactory.decodeFile(imagePath)
+            if (bitmap != null) {
+                Log.d("FinalizePostAdapter", "Bitmap loaded successfully for position $position, size: ${bitmap.byteCount} bytes")
+                holder.imageView.setImageBitmap(bitmap)
+                holder.imageView.visibility = View.VISIBLE
+            } else {
+                Log.w("FinalizePostAdapter", "Failed to load bitmap for position $position")
+                holder.imageView.setImageResource(R.drawable.dummyprofilepic)
+                holder.imageView.visibility = View.VISIBLE
+            }
         } else {
-            Log.w("ImageAdapter", "File does NOT exist at position $position: $imagePath")
-        }
-
-        // Load the bitmap
-        val bitmap = BitmapFactory.decodeFile(imagePath)
-        if (bitmap != null) {
-            Log.d("ImageAdapter", "Bitmap loaded successfully for position $position, size: ${bitmap.byteCount} bytes")
-            holder.imageView.setImageBitmap(bitmap)
+            Log.w("FinalizePostAdapter", "File does not exist at position $position: $imagePath")
+            holder.imageView.setImageResource(R.drawable.dummyprofilepic)
             holder.imageView.visibility = View.VISIBLE
-        } else {
-            Log.w("ImageAdapter", "Failed to load bitmap for position $position")
-            holder.imageView.setImageResource(android.R.drawable.ic_menu_close_clear_cancel) // Placeholder for debugging
-            holder.imageView.visibility = View.VISIBLE // Keep visible to debug
         }
     }
 
     override fun onViewRecycled(holder: ImageViewHolder) {
         super.onViewRecycled(holder)
-        Log.d("ImageAdapter", "Recycled ViewHolder at position: ${holder.adapterPosition}")
+        Log.d("FinalizePostAdapter", "Recycled ViewHolder at position: ${holder.adapterPosition}")
         holder.imageView.setImageBitmap(null)
     }
 
     override fun getItemCount(): Int {
-        Log.d("ImageAdapter", "Item count: ${imagePaths.size}")
+        Log.d("FinalizePostAdapter", "Item count: ${imagePaths.size}")
         return imagePaths.size
     }
 }

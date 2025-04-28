@@ -5,92 +5,157 @@ import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.util.Base64
 import android.widget.ImageView
 import android.widget.ProgressBar
 import androidx.appcompat.app.AppCompatActivity
 import android.animation.ValueAnimator
-import com.google.firebase.database.*
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import okhttp3.logging.HttpLoggingInterceptor
+import okhttp3.OkHttpClient
+import java.net.URL
 
 class StoryViewPage : AppCompatActivity() {
     private lateinit var storyImageView: ImageView
     private lateinit var storyProgressBar: ProgressBar
-    private lateinit var database: DatabaseReference
+    private lateinit var apiService: ApiService
+    private lateinit var databaseHelper: DatabaseHelper
     private val handler = Handler(Looper.getMainLooper())
     private var currentStoryIndex = 0
-    private lateinit var storyIds: List<String>
-    private lateinit var userId: String
+    private lateinit var stories: List<Story>
+    private var userId: String? = null
+    private var token: String? = null
     private var progressAnimator: ValueAnimator? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_story_view_page)
 
+        val logging = HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BODY
+        }
+        val client = OkHttpClient.Builder()
+            .addInterceptor(logging)
+            .build()
+        val retrofit = Retrofit.Builder()
+            .baseUrl("http://192.168.2.11/CONNECTME-API/api/")
+            .client(client)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+        apiService = retrofit.create(ApiService::class.java)
+
+        databaseHelper = DatabaseHelper(this)
+
+        val sharedPref = getSharedPreferences("ConnectMePrefs", MODE_PRIVATE)
+        userId = sharedPref.getString("userId", null)
+        token = sharedPref.getString("token", null)
+
+        if (userId == null || token == null) {
+            redirectToLogin()
+            return
+        }
+
         storyImageView = findViewById(R.id.storyImageView)
         storyProgressBar = findViewById(R.id.storyProgressBar)
-        database = FirebaseDatabase.getInstance().getReference("Stories")
 
-        // Get the story IDs and user ID from the intent
-        storyIds = intent.getStringArrayListExtra("storyIds") ?: emptyList()
-        userId = intent.getStringExtra("userId") ?: ""
+        loadStories()
+    }
 
-        if (storyIds.isNotEmpty()) {
-            displayStory(storyIds[currentStoryIndex])
+    private fun loadStories() {
+        apiService.getStories(userId!!, "Bearer $token").enqueue(object : Callback<StoriesResponse> {
+            override fun onResponse(call: Call<StoriesResponse>, response: Response<StoriesResponse>) {
+                if (response.isSuccessful && response.body()?.status == "success") {
+                    stories = response.body()!!.stories
+                    stories.forEach { story ->
+                        databaseHelper.insertOrUpdateStory(
+                            LocalStory(
+                                storyId = story.storyId,
+                                userId = story.userId.toLong(),
+                                imageUrl = story.imageUrl,
+                                timestamp = story.timestamp
+                            )
+                        )
+                    }
+                    if (stories.isNotEmpty()) {
+                        displayStory(stories[currentStoryIndex])
+                    } else {
+                        loadStoriesFromSQLite()
+                    }
+                } else {
+                    loadStoriesFromSQLite()
+                }
+            }
+
+            override fun onFailure(call: Call<StoriesResponse>, t: Throwable) {
+                loadStoriesFromSQLite()
+            }
+        })
+    }
+
+    private fun loadStoriesFromSQLite() {
+        val localStories = databaseHelper.getStoriesByUserIds(listOf(userId!!.toLong()))
+        stories = localStories.map {
+            Story(
+                storyId = it.storyId,
+                userId = it.userId.toString(),
+                imageUrl = it.imageUrl,
+                timestamp = it.timestamp
+            )
+        }
+        if (stories.isNotEmpty()) {
+            displayStory(stories[currentStoryIndex])
         } else {
-            // If no stories, redirect to HomePage
             redirectToHomePage()
         }
     }
 
-    private fun displayStory(storyId: String) {
-        // Reset the progress bar and cancel any existing animation
+    private fun displayStory(story: Story) {
         storyProgressBar.progress = 0
         progressAnimator?.cancel()
 
-        // Fetch and display the story image immediately
-        database.child(storyId).addListenerForSingleValueEvent(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                val story = snapshot.getValue(StoryInfo::class.java)
-                story?.let {
-                    // Decode the Base64 string to a Bitmap
-                    val imageBytes = Base64.decode(it.bitmapString, Base64.DEFAULT)
-                    val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+        Thread {
+            try {
+                val url = URL(story.imageUrl)
+                val bitmap = BitmapFactory.decodeStream(url.openStream())
+                runOnUiThread {
                     storyImageView.setImageBitmap(bitmap)
-
-                    // Start the progress bar animation (0 to 100 over 4 seconds)
-                    progressAnimator = ValueAnimator.ofInt(0, 100).apply {
-                        duration = 4000 // 4 seconds for the progress bar
-                        addUpdateListener { animation ->
-                            storyProgressBar.progress = animation.animatedValue as Int
-                        }
-                        // When the progress bar animation completes, add a pause before moving to the next story
-                        addListener(object : android.animation.Animator.AnimatorListener {
-                            override fun onAnimationStart(animation: android.animation.Animator) {}
-                            override fun onAnimationCancel(animation: android.animation.Animator) {}
-                            override fun onAnimationRepeat(animation: android.animation.Animator) {}
-                            override fun onAnimationEnd(animation: android.animation.Animator) {
-                                // After the progress bar completes, pause for 1 second
-                                handler.postDelayed({
-                                    currentStoryIndex++
-                                    if (currentStoryIndex < storyIds.size) {
-                                        // Display the next story after the pause
-                                        displayStory(storyIds[currentStoryIndex])
-                                    } else {
-                                        // No more stories, redirect to HomePage
-                                        redirectToHomePage()
-                                    }
-                                }, 1000) // 1-second pause after progress bar completes
-                            }
-                        })
-                        start()
-                    }
+                    startProgressAnimation()
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    storyImageView.setImageResource(R.drawable.dummyprofilepic)
+                    startProgressAnimation()
                 }
             }
+        }.start()
+    }
 
-            override fun onCancelled(error: DatabaseError) {
-                redirectToHomePage()
+    private fun startProgressAnimation() {
+        progressAnimator = ValueAnimator.ofInt(0, 100).apply {
+            duration = 4000
+            addUpdateListener { animation ->
+                storyProgressBar.progress = animation.animatedValue as Int
             }
-        })
+            addListener(object : android.animation.Animator.AnimatorListener {
+                override fun onAnimationStart(animation: android.animation.Animator) {}
+                override fun onAnimationCancel(animation: android.animation.Animator) {}
+                override fun onAnimationRepeat(animation: android.animation.Animator) {}
+                override fun onAnimationEnd(animation: android.animation.Animator) {
+                    handler.postDelayed({
+                        currentStoryIndex++
+                        if (currentStoryIndex < stories.size) {
+                            displayStory(stories[currentStoryIndex])
+                        } else {
+                            redirectToHomePage()
+                        }
+                    }, 1000)
+                }
+            })
+            start()
+        }
     }
 
     private fun redirectToHomePage() {
@@ -99,9 +164,16 @@ class StoryViewPage : AppCompatActivity() {
         finish()
     }
 
+    private fun redirectToLogin() {
+        val intent = Intent(this, LogInPage::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        startActivity(intent)
+        finish()
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         handler.removeCallbacksAndMessages(null)
-        progressAnimator?.cancel() // Cancel the animation to prevent memory leaks
+        progressAnimator?.cancel()
     }
 }

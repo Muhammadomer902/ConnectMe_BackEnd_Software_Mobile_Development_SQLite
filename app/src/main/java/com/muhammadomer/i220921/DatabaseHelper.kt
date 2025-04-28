@@ -29,6 +29,13 @@ data class LocalPost(
     val likes: String
 )
 
+data class LocalStory(
+    val storyId: String,
+    val userId: Long,
+    val imageUrl: String,
+    val timestamp: Long
+)
+
 data class LocalRecentSearch(
     val id: String,
     val userId: Long,
@@ -48,7 +55,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
 
     companion object {
         private const val DATABASE_NAME = "ConnectMe.db"
-        private const val DATABASE_VERSION = 2
+        private const val DATABASE_VERSION = 3
     }
 
     override fun onCreate(db: SQLiteDatabase) {
@@ -78,6 +85,15 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
             )
         """)
         db.execSQL("""
+            CREATE TABLE stories (
+                story_id TEXT PRIMARY KEY,
+                user_id INTEGER,
+                image_url TEXT,
+                timestamp INTEGER,
+                FOREIGN KEY (user_id) REFERENCES users(user_id)
+            )
+        """)
+        db.execSQL("""
             CREATE TABLE recent_searches (
                 id TEXT PRIMARY KEY,
                 user_id INTEGER,
@@ -102,6 +118,9 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         if (oldVersion < 2) {
             db.execSQL("CREATE TABLE recent_searches (id TEXT PRIMARY KEY, user_id INTEGER, searched_user_id INTEGER, username TEXT, timestamp INTEGER, FOREIGN KEY (user_id) REFERENCES users(user_id), FOREIGN KEY (searched_user_id) REFERENCES users(user_id))")
             db.execSQL("CREATE TABLE queued_actions (action_id TEXT PRIMARY KEY, action_type TEXT, payload TEXT, created_at INTEGER)")
+        }
+        if (oldVersion < 3) {
+            db.execSQL("CREATE TABLE stories (story_id TEXT PRIMARY KEY, user_id INTEGER, image_url TEXT, timestamp INTEGER, FOREIGN KEY (user_id) REFERENCES users(user_id))")
         }
     }
 
@@ -204,6 +223,37 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         return posts
     }
 
+    fun insertOrUpdateStory(story: LocalStory) {
+        val db = writableDatabase
+        val values = ContentValues().apply {
+            put("story_id", story.storyId)
+            put("user_id", story.userId)
+            put("image_url", story.imageUrl)
+            put("timestamp", story.timestamp)
+        }
+        db.replace("stories", null, values)
+        db.close()
+    }
+
+    fun getStoriesByUserIds(userIds: List<Long>): List<LocalStory> {
+        val db = readableDatabase
+        val userIdsString = userIds.joinToString(",")
+        val cursor = db.query("stories", null, "user_id IN ($userIdsString)", null, null, null, "timestamp DESC")
+        val stories = mutableListOf<LocalStory>()
+        while (cursor.moveToNext()) {
+            stories.add(
+                LocalStory(
+                    storyId = cursor.getString(cursor.getColumnIndexOrThrow("story_id")),
+                    userId = cursor.getLong(cursor.getColumnIndexOrThrow("user_id")),
+                    imageUrl = cursor.getString(cursor.getColumnIndexOrThrow("image_url")),
+                    timestamp = cursor.getLong(cursor.getColumnIndexOrThrow("timestamp"))
+                )
+            )
+        }
+        cursor.close()
+        return stories
+    }
+
     fun insertOrUpdateRecentSearch(search: LocalRecentSearch) {
         val db = writableDatabase
         val values = ContentValues().apply {
@@ -276,6 +326,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         val db = writableDatabase
         db.delete("users", null, null)
         db.delete("posts", null, null)
+        db.delete("stories", null, null)
         db.delete("recent_searches", null, null)
         db.delete("queued_actions", null, null)
         db.close()

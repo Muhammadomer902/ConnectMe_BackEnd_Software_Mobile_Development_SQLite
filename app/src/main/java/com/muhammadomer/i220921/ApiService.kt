@@ -1,3 +1,4 @@
+```kotlin
 package com.muhammadomer.i220921
 
 import okhttp3.MultipartBody
@@ -45,7 +46,6 @@ interface ApiService {
     @GET("posts.php")
     fun getPosts(@Query("userId") userId: String, @Header("Authorization") authToken: String): Call<PostsResponse>
 
-    // New endpoints for search and follow
     @GET("search-users.php")
     fun searchUsers(
         @Query("query") query: String,
@@ -59,6 +59,35 @@ interface ApiService {
         @Query("targetUserId") targetUserId: String,
         @Header("Authorization") authToken: String
     ): Call<GenericResponse>
+
+    // New endpoints for posts and stories
+    @Multipart
+    @POST("upload-post-image.php")
+    fun uploadPostImage(
+        @Query("userId") userId: String,
+        @Header("Authorization") authToken: String,
+        @Part image: MultipartBody.Part
+    ): Call<ImageUploadResponse>
+
+    @POST("create-post.php")
+    fun createPost(
+        @Query("userId") userId: String,
+        @Header("Authorization") authToken: String,
+        @Body request: CreatePostRequest
+    ): Call<GenericResponse>
+
+    @POST("create-story.php")
+    fun createStory(
+        @Query("userId") userId: String,
+        @Header("Authorization") authToken: String,
+        @Body request: CreateStoryRequest
+    ): Call<GenericResponse>
+
+    @GET("get-stories.php")
+    fun getStories(
+        @Query("userId") userId: String,
+        @Header("Authorization") authToken: String
+    ): Call<StoriesResponse>
 }
 
 data class SearchUser(
@@ -79,3 +108,34 @@ data class GenericResponse(
     val status: String,
     val message: String
 )
+
+data class ImageUploadResponse(
+    val status: String,
+    val message: String,
+    val imageUrl: String
+)
+
+data class CreatePostRequest(
+    val imageUrls: List<String>,
+    val caption: String?,
+    val timestamp: Long
+)
+
+data class CreateStoryRequest(
+    val imageUrl: String,
+    val timestamp: Long
+)
+
+data class Story(
+    val storyId: String,
+    val userId: String,
+    val imageUrl: String,
+    val timestamp: Long
+)
+
+data class StoriesResponse(
+    val status: String,
+    val message: String,
+    val stories: List<Story>
+)
+```
