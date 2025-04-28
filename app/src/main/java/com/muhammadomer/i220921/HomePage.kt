@@ -5,8 +5,7 @@ import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.util.Base64
-import android.view.LayoutInflater
+import android.util.Log
 import android.widget.Button
 import android.widget.ImageButton
 import android.widget.LinearLayout
@@ -15,27 +14,61 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.database.*
+import com.google.gson.Gson
 import de.hdodenhof.circleimageview.CircleImageView
-import java.util.concurrent.TimeUnit
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import okhttp3.logging.HttpLoggingInterceptor
+import okhttp3.OkHttpClient
+import java.net.URL
 
 class HomePage : AppCompatActivity() {
-    private lateinit var auth: FirebaseAuth
-    private lateinit var database: DatabaseReference
+    private lateinit var apiService: ApiService
+    private lateinit var databaseHelper: DatabaseHelper
     private lateinit var postAdapter: HomePostAdapter
     private lateinit var storyContainer: LinearLayout
     private val handler = Handler(Looper.getMainLooper())
+    private var userId: String? = null
+    private var token: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_home_page)
 
-        // Initialize Firebase Auth and Database
-        auth = FirebaseAuth.getInstance()
-        database = FirebaseDatabase.getInstance().getReference("RegisteredUsers")
-        val userId = auth.currentUser?.uid ?: return
+        // Initialize Retrofit
+        val logging = HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BODY
+        }
+        val client = OkHttpClient.Builder()
+            .addInterceptor(logging)
+            .build()
+        val retrofit = Retrofit.Builder()
+            .baseUrl("http://192.168.2.11/CONNECTME-API/api/")
+            .client(client)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+        apiService = retrofit.create(ApiService::class.java)
+
+        // Initialize DatabaseHelper
+        databaseHelper = DatabaseHelper(this)
+
+        // Get userId and token from SharedPreferences
+        val sharedPref = getSharedPreferences("ConnectMePrefs", MODE_PRIVATE)
+        userId = sharedPref.getString("userId", null)
+        token = sharedPref.getString("token", null)
+
+        if (userId == null || token == null) {
+            Toast.makeText(this, "User not authenticated", Toast.LENGTH_SHORT).show()
+            val intent = Intent(this, LogInPage::class.java)
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            startActivity(intent)
+            finish()
+            return
+        }
 
         // Set up RecyclerView for posts
         val recyclerView = findViewById<RecyclerView>(R.id.postRecyclerView)
@@ -46,103 +79,18 @@ class HomePage : AppCompatActivity() {
         // Find the story container
         storyContainer = findViewById<LinearLayout>(R.id.story_container)
 
-        // Fetch and set the current user's profile picture for NewStory
+        // Load current user's profile picture for NewStory
         val newStoryView = findViewById<CircleImageView>(R.id.NewStory)
-        database.child(userId).addListenerForSingleValueEvent(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                val user = snapshot.getValue(userCredential::class.java)
-                user?.profileImage?.let { profileImage ->
-                    try {
-                        val imageBytes = Base64.decode(profileImage, Base64.DEFAULT)
-                        val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
-                        newStoryView.setImageBitmap(bitmap)
-                    } catch (e: Exception) {
-                        newStoryView.setImageResource(R.drawable.dummyprofilepic) // Fallback to placeholder
-                    }
-                } ?: newStoryView.setImageResource(R.drawable.dummyprofilepic) // Fallback if profileImage is null
-            }
+        loadUserProfilePicture(userId!!, newStoryView)
 
-            override fun onCancelled(error: DatabaseError) {
-                newStoryView.setImageResource(R.drawable.dummyprofilepic) // Fallback on error
-            }
-        })
+        // Fetch and display posts
+        fetchAndDisplayPosts(userId!!)
 
+        // Note: Stories feature is not implemented in the API, commenting out Firebase-based story logic
+        /*
         // Fetch and display stories
         fetchAndDisplayStories(userId)
-
-        /*
-        // Add dummy following value for testing
-        val dummyUserId = "XOZrByDj3LhdWbD4Qc8qhpRRwhE2"
-        database.child(userId).child("following").addListenerForSingleValueEvent(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                val followingList = snapshot.getValue(object : GenericTypeIndicator<MutableList<String>>() {}) ?: mutableListOf()
-                if (!followingList.contains(dummyUserId)) {
-                    followingList.add(dummyUserId)
-                    database.child(userId).child("following").setValue(followingList)
-                        .addOnSuccessListener {
-                            Toast.makeText(this@HomePage, "Added dummy user to following list for testing", Toast.LENGTH_SHORT).show()
-                        }
-                        .addOnFailureListener { error ->
-                            Toast.makeText(this@HomePage, "Failed to add dummy user: ${error.message}", Toast.LENGTH_SHORT).show()
-                        }
-                }
-            }
-
-            override fun onCancelled(error: DatabaseError) {
-                Toast.makeText(this@HomePage, "Failed to fetch following list: ${error.message}", Toast.LENGTH_SHORT).show()
-            }
-        })
         */
-
-        // Fetch current user's data to get their following list and posts
-        database.child(userId).addListenerForSingleValueEvent(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                val user = snapshot.getValue(userCredential::class.java)
-                user?.let {
-                    val userIdsToFetch = mutableListOf(userId) // Include current user
-                    user.following?.let { following -> userIdsToFetch.addAll(following) }
-
-                    // Fetch posts from all relevant users
-                    val postsRef = FirebaseDatabase.getInstance().getReference("Posts")
-                    val postList = mutableListOf<Pair<userCredential, Post>>()
-
-                    userIdsToFetch.forEach { uid ->
-                        database.child(uid).addListenerForSingleValueEvent(object : ValueEventListener {
-                            override fun onDataChange(userSnapshot: DataSnapshot) {
-                                val fetchedUser = userSnapshot.getValue(userCredential::class.java)
-                                fetchedUser?.let { u ->
-                                    u.posts?.forEach { postId ->
-                                        postsRef.child(postId).addListenerForSingleValueEvent(object : ValueEventListener {
-                                            override fun onDataChange(postSnapshot: DataSnapshot) {
-                                                val post = postSnapshot.getValue(Post::class.java)
-                                                post?.let { p ->
-                                                    postList.add(Pair(u, p))
-                                                    // Sort by timestamp descending (latest first)
-                                                    postList.sortByDescending { it.second.timestamp }
-                                                    postAdapter.submitPosts(postList)
-                                                }
-                                            }
-
-                                            override fun onCancelled(error: DatabaseError) {
-                                                Toast.makeText(this@HomePage, "Failed to load post: ${error.message}", Toast.LENGTH_SHORT).show()
-                                            }
-                                        })
-                                    }
-                                }
-                            }
-
-                            override fun onCancelled(error: DatabaseError) {
-                                Toast.makeText(this@HomePage, "Failed to load user data: ${error.message}", Toast.LENGTH_SHORT).show()
-                            }
-                        })
-                    }
-                }
-            }
-
-            override fun onCancelled(error: DatabaseError) {
-                Toast.makeText(this@HomePage, "Failed to load user data: ${error.message}", Toast.LENGTH_SHORT).show()
-            }
-        })
 
         // Navigation button listeners
         val myBtn = findViewById<Button>(R.id.myBtn)
@@ -194,170 +142,160 @@ class HomePage : AppCompatActivity() {
         }
     }
 
-    private fun fetchAndDisplayStories(userId: String) {
-        database.child(userId).addListenerForSingleValueEvent(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                val user = snapshot.getValue(userCredential::class.java)
-                user?.let {
-                    val userIdsToFetch = mutableListOf(userId) // Include current user
-                    user.following?.let { following -> userIdsToFetch.addAll(following) }
-
-                    val storiesRef = FirebaseDatabase.getInstance().getReference("Stories")
-                    val userStoriesMap = mutableMapOf<String, Pair<userCredential, MutableList<StoryInfo>>>()
-
-                    userIdsToFetch.forEach { uid ->
-                        database.child(uid).addListenerForSingleValueEvent(object : ValueEventListener {
-                            override fun onDataChange(userSnapshot: DataSnapshot) {
-                                val fetchedUser = userSnapshot.getValue(userCredential::class.java)
-                                fetchedUser?.let { u ->
-                                    val storyIds = u.stories ?: emptyList()
-                                    val userStories = mutableListOf<StoryInfo>()
-                                    val expiredStoryIds = mutableListOf<String>() // Track expired story IDs
-                                    var storiesProcessed = 0 // Counter to track processed stories
-
-                                    if (storyIds.isEmpty()) {
-                                        // If no stories, consider processing complete for this user
-                                        storiesProcessed = 1 // Trigger the last story check
-                                    } else {
-                                        storyIds.forEach { storyId ->
-                                            storiesRef.child(storyId).addListenerForSingleValueEvent(object : ValueEventListener {
-                                                override fun onDataChange(storySnapshot: DataSnapshot) {
-                                                    val story = storySnapshot.getValue(StoryInfo::class.java)
-                                                    story?.let { s ->
-                                                        // Check if the story is older than 24 hours
-                                                        val currentTime = System.currentTimeMillis()
-                                                        val storyAge = currentTime - (s.timestamp ?: 0)
-                                                        val twentyFourHours = TimeUnit.HOURS.toMillis(24)
-                                                        // For testing
-                                                        // val twentyFourHours = TimeUnit.MINUTES.toMillis(5) // 5 minutes for testing
-                                                        if (storyAge > twentyFourHours) {
-                                                            expiredStoryIds.add(storyId) // Add to expired list
-                                                        } else {
-                                                            userStories.add(s) // Add to display list
-                                                        }
-                                                    } ?: run {
-                                                        // If story doesn't exist in Stories node, treat it as expired
-                                                        expiredStoryIds.add(storyId)
-                                                    }
-
-                                                    storiesProcessed++ // Increment counter
-
-                                                    // Check if all stories for this user have been processed
-                                                    if (storiesProcessed == storyIds.size) {
-                                                        // Remove all expired stories from Stories node
-                                                        expiredStoryIds.forEach { expiredStoryId ->
-                                                            storiesRef.child(expiredStoryId).removeValue()
-                                                        }
-
-                                                        // Remove all expired story IDs from user's stories list
-                                                        if (expiredStoryIds.isNotEmpty()) {
-                                                            val updatedStories = u.stories?.toMutableList() ?: mutableListOf()
-                                                            updatedStories.removeAll(expiredStoryIds)
-                                                            database.child(uid).child("stories").setValue(updatedStories)
-                                                        }
-
-                                                        // Update userStoriesMap with non-expired stories
-                                                        if (userStories.isNotEmpty()) {
-                                                            userStoriesMap[uid] = Pair(u, userStories)
-                                                        }
-
-                                                        // If this is the last user, display the stories
-                                                        if (uid == userIdsToFetch.last()) {
-                                                            displayStories(userStoriesMap)
-                                                        }
-                                                    }
-                                                }
-
-                                                override fun onCancelled(error: DatabaseError) {
-                                                    Toast.makeText(this@HomePage, "Failed to load story: ${error.message}", Toast.LENGTH_SHORT).show()
-                                                    storiesProcessed++ // Increment counter even on failure
-
-                                                    // Check if all stories for this user have been processed
-                                                    if (storiesProcessed == storyIds.size) {
-                                                        // Remove all expired stories from Stories node
-                                                        expiredStoryIds.forEach { expiredStoryId ->
-                                                            storiesRef.child(expiredStoryId).removeValue()
-                                                        }
-
-                                                        // Remove all expired story IDs from user's stories list
-                                                        if (expiredStoryIds.isNotEmpty()) {
-                                                            val updatedStories = u.stories?.toMutableList() ?: mutableListOf()
-                                                            updatedStories.removeAll(expiredStoryIds)
-                                                            database.child(uid).child("stories").setValue(updatedStories)
-                                                        }
-
-                                                        // Update userStoriesMap with non-expired stories
-                                                        if (userStories.isNotEmpty()) {
-                                                            userStoriesMap[uid] = Pair(u, userStories)
-                                                        }
-
-                                                        // If this is the last user, display the stories
-                                                        if (uid == userIdsToFetch.last()) {
-                                                            displayStories(userStoriesMap)
-                                                        }
-                                                    }
-                                                }
-                                            })
-                                        }
+    private fun loadUserProfilePicture(userId: String, imageView: CircleImageView) {
+        // Try API first
+        apiService.getUser(userId, "Bearer $token").enqueue(object : Callback<UserResponse> {
+            override fun onResponse(call: Call<UserResponse>, response: Response<UserResponse>) {
+                if (response.isSuccessful) {
+                    val user = response.body()
+                    user?.let {
+                        if (!it.profileImage.isNullOrEmpty()) {
+                            Thread {
+                                try {
+                                    val url = URL(it.profileImage)
+                                    val bitmap = BitmapFactory.decodeStream(url.openStream())
+                                    runOnUiThread {
+                                        imageView.setImageBitmap(bitmap)
                                     }
-
-                                    // Handle case where user has no stories
-                                    if (storyIds.isEmpty()) {
-                                        if (uid == userIdsToFetch.last()) {
-                                            displayStories(userStoriesMap)
-                                        }
+                                } catch (e: Exception) {
+                                    runOnUiThread {
+                                        imageView.setImageResource(R.drawable.dummyprofilepic)
                                     }
                                 }
-                            }
-
-                            override fun onCancelled(error: DatabaseError) {
-                                Toast.makeText(this@HomePage, "Failed to load user data: ${error.message}", Toast.LENGTH_SHORT).show()
-                                // If this is the last user, display the stories even on failure
-                                if (uid == userIdsToFetch.last()) {
-                                    displayStories(userStoriesMap)
-                                }
-                            }
-                        })
+                            }.start()
+                        } else {
+                            imageView.setImageResource(R.drawable.dummyprofilepic)
+                        }
                     }
+                } else {
+                    Log.e("HomePage", "Failed to load user: ${response.message()}")
+                    loadUserProfilePictureFromSQLite(userId.toLong(), imageView)
                 }
             }
 
-            override fun onCancelled(error: DatabaseError) {
-                Toast.makeText(this@HomePage, "Failed to load user data: ${error.message}", Toast.LENGTH_SHORT).show()
+            override fun onFailure(call: Call<UserResponse>, t: Throwable) {
+                Log.e("HomePage", "Network error: ${t.message}")
+                Toast.makeText(this@HomePage, "Network error, trying local storage", Toast.LENGTH_SHORT).show()
+                loadUserProfilePictureFromSQLite(userId.toLong(), imageView)
             }
         })
     }
 
-    private fun displayStories(userStoriesMap: Map<String, Pair<userCredential, MutableList<StoryInfo>>>) {
-        // Clear existing dynamic story views (keep the first static one)
-        storyContainer.removeViews(1, storyContainer.childCount - 1)
-
-        // Add story thumbnails dynamically
-        userStoriesMap.forEach { (userId, userStoriesPair) ->
-            val user = userStoriesPair.first
-            val stories = userStoriesPair.second
-            val storyView = LayoutInflater.from(this).inflate(R.layout.home_story, storyContainer, false) as CircleImageView
-
-            // Set the user's profile picture
-            user.profileImage?.let { profileImage ->
+    private fun loadUserProfilePictureFromSQLite(userId: Long, imageView: CircleImageView) {
+        val localUser = databaseHelper.getUserById(userId)
+        if (localUser != null && !localUser.profileImage.isNullOrEmpty()) {
+            Thread {
                 try {
-                    val imageBytes = Base64.decode(profileImage, Base64.DEFAULT)
-                    val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
-                    storyView.setImageBitmap(bitmap)
+                    val url = URL(localUser.profileImage)
+                    val bitmap = BitmapFactory.decodeStream(url.openStream())
+                    runOnUiThread {
+                        imageView.setImageBitmap(bitmap)
+                    }
                 } catch (e: Exception) {
-                    storyView.setImageResource(R.drawable.profilepicture_1) // Fallback to placeholder
+                    runOnUiThread {
+                        imageView.setImageResource(R.drawable.dummyprofilepic)
+                    }
                 }
-            } ?: storyView.setImageResource(R.drawable.profilepicture_1) // Fallback if profileImage is null
+            }.start()
+        } else {
+            imageView.setImageResource(R.drawable.dummyprofilepic)
+        }
+    }
 
-            storyView.setOnClickListener {
-                // Start StoryViewPage with the list of stories for this user
-                val storyIds = stories.map { it.storyId ?: "" }
-                val intent = Intent(this, StoryViewPage::class.java)
-                intent.putStringArrayListExtra("storyIds", ArrayList(storyIds))
-                intent.putExtra("userId", userId)
-                startActivity(intent)
+    private fun fetchAndDisplayPosts(userId: String) {
+        // Try API first
+        apiService.getPosts(userId, "Bearer $token").enqueue(object : Callback<PostsResponse> {
+            override fun onResponse(call: Call<PostsResponse>, response: Response<PostsResponse>) {
+                if (response.isSuccessful) {
+                    val postsResponse = response.body()
+                    if (postsResponse?.status == "success") {
+                        val posts = postsResponse.posts
+                        // Get user data for the posts' owner
+                        apiService.getUser(userId, "Bearer $token").enqueue(object : Callback<UserResponse> {
+                            override fun onResponse(call: Call<UserResponse>, response: Response<UserResponse>) {
+                                if (response.isSuccessful) {
+                                    val user = response.body()
+                                    user?.let {
+                                        val localUser = LocalUser(
+                                            userId = userId.toLong(),
+                                            name = it.name ?: "",
+                                            username = it.username ?: "",
+                                            phoneNumber = it.phoneNumber ?: "",
+                                            email = it.email ?: "",
+                                            bio = it.bio,
+                                            profileImage = it.profileImage,
+                                            postsCount = it.postsCount ?: 0,
+                                            followersCount = it.followersCount ?: 0,
+                                            followingCount = it.followingCount ?: 0
+                                        )
+                                        databaseHelper.insertOrUpdateUser(localUser)
+                                        val postList = posts.map { post ->
+                                            // Cache post in SQLite
+                                            val localPost = LocalPost(
+                                                postId = post.postId ?: "",
+                                                userId = userId.toLong(),
+                                                imageUrls = Gson().toJson(post.imageUrls),
+                                                caption = post.caption,
+                                                timestamp = post.timestamp ?: 0,
+                                                likes = Gson().toJson(post.likes)
+                                            )
+                                            databaseHelper.insertOrUpdatePost(localPost)
+                                            Pair(localUser, post)
+                                        }
+                                        postAdapter.submitPosts(postList)
+                                    }
+                                } else {
+                                    Log.e("HomePage", "Failed to load user: ${response.message()}")
+                                    loadPostsFromSQLite(userId.toLong())
+                                }
+                            }
+
+                            override fun onFailure(call: Call<UserResponse>, t: Throwable) {
+                                Log.e("HomePage", "Network error: ${t.message}")
+                                Toast.makeText(this@HomePage, "Network error, trying local storage", Toast.LENGTH_SHORT).show()
+                                loadPostsFromSQLite(userId.toLong())
+                            }
+                        })
+                    } else {
+                        Toast.makeText(this@HomePage, postsResponse?.message ?: "Failed to load posts", Toast.LENGTH_SHORT).show()
+                        loadPostsFromSQLite(userId.toLong())
+                    }
+                } else {
+                    Log.e("HomePage", "Failed to load posts: ${response.message()}")
+                    Toast.makeText(this@HomePage, "Failed to load posts, trying local storage", Toast.LENGTH_SHORT).show()
+                    loadPostsFromSQLite(userId.toLong())
+                }
             }
-            storyContainer.addView(storyView)
+
+            override fun onFailure(call: Call<PostsResponse>, t: Throwable) {
+                Log.e("HomePage", "Network error: ${t.message}")
+                Toast.makeText(this@HomePage, "Network error, trying local storage", Toast.LENGTH_SHORT).show()
+                loadPostsFromSQLite(userId.toLong())
+            }
+        })
+    }
+
+    private fun loadPostsFromSQLite(userId: Long) {
+        val localUser = databaseHelper.getUserById(userId)
+        if (localUser != null) {
+            val localPosts = databaseHelper.getPostsByUserIds(listOf(userId))
+            val postList = localPosts.map { localPost ->
+                val post = Post(
+                    postId = localPost.postId,
+                    imageUrls = Gson().fromJson(localPost.imageUrls, Array<String>::class.java).toList(),
+                    caption = localPost.caption,
+                    timestamp = localPost.timestamp,
+                    likes = Gson().fromJson(localPost.likes, Array<String>::class.java).toList(),
+                    comments = emptyList() // Comments not cached
+                )
+                Pair(localUser, post)
+            }
+            postAdapter.submitPosts(postList)
+            if (postList.isEmpty()) {
+                Toast.makeText(this, "No posts available offline", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            Toast.makeText(this, "No user data available offline", Toast.LENGTH_SHORT).show()
         }
     }
 

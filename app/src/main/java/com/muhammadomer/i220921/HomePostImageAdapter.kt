@@ -1,12 +1,12 @@
 package com.muhammadomer.i220921
 
 import android.graphics.BitmapFactory
-import android.util.Base64
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import androidx.recyclerview.widget.RecyclerView
+import java.net.URL
 
 class HomePostImageAdapter(private val imageUrls: List<String>) : RecyclerView.Adapter<HomePostImageAdapter.ImageViewHolder>() {
 
@@ -21,13 +21,19 @@ class HomePostImageAdapter(private val imageUrls: List<String>) : RecyclerView.A
 
     override fun onBindViewHolder(holder: ImageViewHolder, position: Int) {
         val imageUrl = imageUrls[position]
-        try {
-            val decodedImage = Base64.decode(imageUrl, Base64.DEFAULT)
-            val bitmap = BitmapFactory.decodeByteArray(decodedImage, 0, decodedImage.size)
-            holder.imageView.setImageBitmap(bitmap)
-        } catch (e: Exception) {
-            holder.imageView.setImageResource(android.R.drawable.ic_menu_close_clear_cancel) // Placeholder on error
-        }
+        Thread {
+            try {
+                val url = URL(imageUrl)
+                val bitmap = BitmapFactory.decodeStream(url.openStream())
+                holder.itemView.post {
+                    holder.imageView.setImageBitmap(bitmap)
+                }
+            } catch (e: Exception) {
+                holder.itemView.post {
+                    holder.imageView.setImageResource(android.R.drawable.ic_menu_gallery) // Placeholder on error
+                }
+            }
+        }.start()
     }
 
     override fun getItemCount(): Int = imageUrls.size

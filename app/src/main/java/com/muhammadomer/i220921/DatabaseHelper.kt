@@ -18,12 +18,22 @@ data class LocalUser(
     val followingCount: Int
 )
 
+data class LocalPost(
+    val postId: String,
+    val userId: Long,
+    val imageUrls: String, // JSON-encoded list of URLs
+    val caption: String?,
+    val timestamp: Long,
+    val likes: String // JSON-encoded list of user IDs
+)
+
 class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
 
     companion object {
         private const val DATABASE_NAME = "ConnectMe.db"
-        private const val DATABASE_VERSION = 1
+        private const val DATABASE_VERSION = 3 // Incremented due to new table
         private const val TABLE_USERS = "users"
+        private const val TABLE_POSTS = "posts"
         private const val COLUMN_USER_ID = "user_id"
         private const val COLUMN_NAME = "name"
         private const val COLUMN_USERNAME = "username"
@@ -34,10 +44,16 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         private const val COLUMN_POSTS_COUNT = "posts_count"
         private const val COLUMN_FOLLOWERS_COUNT = "followers_count"
         private const val COLUMN_FOLLOWING_COUNT = "following_count"
+        private const val COLUMN_POST_ID = "post_id"
+        private const val COLUMN_POST_USER_ID = "user_id"
+        private const val COLUMN_IMAGE_URLS = "image_urls"
+        private const val COLUMN_CAPTION = "caption"
+        private const val COLUMN_TIMESTAMP = "timestamp"
+        private const val COLUMN_LIKES = "likes"
     }
 
     override fun onCreate(db: SQLiteDatabase) {
-        val createTableQuery = """
+        val createUsersTableQuery = """
             CREATE TABLE $TABLE_USERS (
                 $COLUMN_USER_ID INTEGER PRIMARY KEY,
                 $COLUMN_NAME TEXT NOT NULL,
@@ -51,10 +67,24 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
                 $COLUMN_FOLLOWING_COUNT INTEGER DEFAULT 0
             )
         """.trimIndent()
-        db.execSQL(createTableQuery)
+        db.execSQL(createUsersTableQuery)
+
+        val createPostsTableQuery = """
+            CREATE TABLE $TABLE_POSTS (
+                $COLUMN_POST_ID TEXT PRIMARY KEY,
+                $COLUMN_POST_USER_ID INTEGER,
+                $COLUMN_IMAGE_URLS TEXT,
+                $COLUMN_CAPTION TEXT,
+                $COLUMN_TIMESTAMP INTEGER,
+                $COLUMN_LIKES TEXT,
+                FOREIGN KEY ($COLUMN_POST_USER_ID) REFERENCES $TABLE_USERS ($COLUMN_USER_ID)
+            )
+        """.trimIndent()
+        db.execSQL(createPostsTableQuery)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        db.execSQL("DROP TABLE IF EXISTS $TABLE_POSTS")
         db.execSQL("DROP TABLE IF EXISTS $TABLE_USERS")
         onCreate(db)
     }
@@ -110,9 +140,53 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         }
     }
 
+    fun insertOrUpdatePost(post: LocalPost) {
+        val db = writableDatabase
+        val values = ContentValues().apply {
+            put(COLUMN_POST_ID, post.postId)
+            put(COLUMN_POST_USER_ID, post.userId)
+            put(COLUMN_IMAGE_URLS, post.imageUrls)
+            put(COLUMN_CAPTION, post.caption)
+            put(COLUMN_TIMESTAMP, post.timestamp)
+            put(COLUMN_LIKES, post.likes)
+        }
+        db.replace(TABLE_POSTS, null, values)
+        db.close()
+    }
+
+    fun getPostsByUserIds(userIds: List<Long>): List<LocalPost> {
+        val db = readableDatabase
+        val userIdsString = userIds.joinToString(",")
+        val cursor = db.query(
+            TABLE_POSTS,
+            null,
+            "$COLUMN_POST_USER_ID IN ($userIdsString)",
+            null,
+            null,
+            null,
+            "$COLUMN_TIMESTAMP DESC"
+        )
+        val posts = mutableListOf<LocalPost>()
+        while (cursor.moveToNext()) {
+            posts.add(
+                LocalPost(
+                    postId = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_POST_ID)),
+                    userId = cursor.getLong(cursor.getColumnIndexOrThrow(COLUMN_POST_USER_ID)),
+                    imageUrls = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_IMAGE_URLS)),
+                    caption = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_CAPTION)),
+                    timestamp = cursor.getLong(cursor.getColumnIndexOrThrow(COLUMN_TIMESTAMP)),
+                    likes = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_LIKES))
+                )
+            )
+        }
+        cursor.close()
+        return posts
+    }
+
     fun clearUserData() {
         val db = writableDatabase
         db.delete(TABLE_USERS, null, null)
+        db.delete(TABLE_POSTS, null, null)
         db.close()
     }
 }
